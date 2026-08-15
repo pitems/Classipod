@@ -2,6 +2,7 @@ import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/cover_flow/widgets/album_song_list_panel.dart';
 import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 class AlbumTransitionCard extends StatefulWidget {
   final AlbumModel album;
@@ -25,7 +26,10 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
   static const _closingDuration = Duration(milliseconds: 1300);
 
   late final AnimationController _controller;
+  final ValueNotifier<bool> _titleAnimationEnabled = ValueNotifier(false);
   bool _hiddenForRoute = false;
+
+  ValueListenable<bool> get titleAnimationEnabled => _titleAnimationEnabled;
 
   @override
   void initState() {
@@ -40,6 +44,7 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
   @override
   void dispose() {
     _controller.dispose();
+    _titleAnimationEnabled.dispose();
     super.dispose();
   }
 
@@ -71,6 +76,14 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
     }
   }
 
+  void startTitleAnimation() {
+    _titleAnimationEnabled.value = true;
+  }
+
+  void resetTitleAnimation() {
+    _titleAnimationEnabled.value = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cover = AlbumReflectiveArt(
@@ -81,7 +94,10 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
       heroTag:
           '${widget.album.albumName}-${widget.album.albumArtistName}-transition',
     );
-    final list = AlbumSongListPanel(album: widget.album);
+    final list = AlbumSongListPanel(
+      album: widget.album,
+      titleAnimationEnabled: _titleAnimationEnabled,
+    );
 
     return Visibility(
       visible: !_hiddenForRoute,
@@ -111,7 +127,7 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
                 ((progress - 0.50) / 0.35).clamp(0.0, 1.0),
               );
               final heightProgress = Curves.easeInOutCubic.transform(
-                ((progress - 0.52) / 0.48).clamp(0.0, 1.0),
+                ((progress - 0.45) / 0.55).clamp(0.0, 1.0),
               );
               final width = 230.0 + ((targetWidth - 230.0) * widthProgress);
               final height = 230.0 + ((targetHeight - 230.0) * heightProgress);

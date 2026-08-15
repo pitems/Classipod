@@ -166,6 +166,7 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
       unawaited(_openAlbumSelection(displayItems[index]));
       return;
     }
+    transition.resetTitleAnimation();
     setState(() => _transitionActive = true);
     unawaited(_albumDimController.forward());
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -181,7 +182,11 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
       Routes.coverFlowSelection.name,
       extra: CoverFlowAlbumSelectionRouteArgs(
         albumDetail: albumDetail,
-        onRouteReady: transition?.hideForRoute,
+        onRouteReady: () {
+          transition?.hideForRoute();
+          transition?.startTitleAnimation();
+        },
+        titleAnimationEnabled: transition?.titleAnimationEnabled,
       ),
     );
     if (mounted) {

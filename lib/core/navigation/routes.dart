@@ -349,6 +349,10 @@ final routerProvider = Provider(
                                     (state.extra
                                             as CoverFlowAlbumSelectionRouteArgs)
                                         .onRouteReady,
+                                titleAnimationEnabled:
+                                    (state.extra
+                                            as CoverFlowAlbumSelectionRouteArgs)
+                                        .titleAnimationEnabled,
                               ),
                             ),
                           ),
