@@ -6,6 +6,8 @@ import 'package:classipod/core/widgets/empty_state_widget.dart';
 import 'package:classipod/features/custom_screen_elements/custom_page_screen.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
+import 'package:classipod/features/music/cover_flow/screens/cover_flow_album_selection_screen.dart';
+import 'package:classipod/features/music/cover_flow/widgets/album_transition_card.dart';
 import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +26,7 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
 
   late final AnimationController _transitionController;
   late final Animation<double> _transitionAnimation;
+  final _selectedTransitionKey = GlobalKey<AlbumTransitionCardState>();
   bool _isLeaving = false;
 
   @override
@@ -103,10 +106,27 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   void onSelectPressed() => _chooseAlbum(selectedDisplayItem);
 
   void _chooseAlbum(int index) {
-    final albumDetail = ref.read(albumDetailsProvider).elementAt(index);
-    unawaited(
-      context.pushNamed(Routes.coverFlowSelection.name, extra: albumDetail),
+    final transition = _selectedTransitionKey.currentState;
+    if (transition == null) {
+      unawaited(_openAlbumSelection(displayItems[index]));
+      return;
+    }
+    unawaited(transition.open());
+  }
+
+  Future<void> _openAlbumSelection(AlbumModel albumDetail) async {
+    final transition = _selectedTransitionKey.currentState;
+    await context.pushNamed(
+      Routes.coverFlowSelection.name,
+      extra: CoverFlowAlbumSelectionRouteArgs(
+        albumDetail: albumDetail,
+        onRouteReady: transition?.hideForRoute,
+      ),
     );
+    if (mounted) {
+      transition?.showForClose();
+      await transition?.close();
+    }
   }
 
   Widget _buildTransparentPage(BuildContext context, Widget content) {
@@ -149,88 +169,98 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
           const SizedBox(height: 10),
           Expanded(
             child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SizedBox(
-                    height: 230,
-                    child: PageView.builder(
-                      controller: pageController,
-                      itemCount: displayItems.length,
-                      itemBuilder: (context, index) {
-                        final double relativePosition = index - currentPage;
-                        return GestureDetector(
-                          onTap: relativePosition == 0
-                              ? () => _chooseAlbum(index)
-                              : () async => pageController.animateToPage(
-                                  index,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.ease,
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(
+                  height: 230,
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemCount: displayItems.length,
+                    clipBehavior: Clip.none,
+                    itemBuilder: (context, index) {
+                      final double relativePosition = index - currentPage;
+                      return GestureDetector(
+                        onTap: relativePosition == 0
+                            ? () => _chooseAlbum(index)
+                            : () async => pageController.animateToPage(
+                                index,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.ease,
+                              ),
+                        child: Transform(
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.003)
+                            ..scaleByDouble(
+                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                  0.4,
+                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                  0.4,
+                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                  0.4,
+                              1,
+                            )
+                            ..rotateY(relativePosition * 0.9),
+                          alignment: relativePosition >= 0
+                              ? Alignment.centerLeft
+                              : Alignment.centerRight,
+                          child: relativePosition == 0
+                              ? AlbumTransitionCard(
+                                  key: _selectedTransitionKey,
+                                  album: displayItems[index],
+                                  onOpenCompleted: () => unawaited(
+                                    _openAlbumSelection(displayItems[index]),
+                                  ),
+                                )
+                              : AlbumReflectiveArt(
+                                  imageWidth: 230,
+                                  thumbnailPath:
+                                      displayItems[index].albumArtPath,
+                                  isOnDevice: displayItems[index].isOnDevice(),
+                                  heroTag:
+                                      "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
                                 ),
-                          child: Transform(
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.003)
-                              ..scaleByDouble(
-                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                    0.4,
-                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                    0.4,
-                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                    0.4,
-                                1,
-                              )
-                              ..rotateY(relativePosition * 0.9),
-                            alignment: relativePosition >= 0
-                                ? Alignment.centerLeft
-                                : Alignment.centerRight,
-                            child: AlbumReflectiveArt(
-                              imageWidth: 230,
-                              thumbnailPath: displayItems[index].albumArtPath,
-                              isOnDevice: displayItems[index].isOnDevice(),
-                              heroTag:
-                                  "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
-                            ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        Text(
+                          displayItems[selectedDisplayItem].albumName,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          displayItems[selectedDisplayItem].albumArtistName,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          Text(
-                            displayItems[selectedDisplayItem].albumName,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            displayItems[selectedDisplayItem].albumArtistName,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
   }
 }

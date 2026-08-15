@@ -1,23 +1,33 @@
-import 'dart:async';
-import 'dart:math' as math;
-
-import 'package:classipod/core/constants/app_color_scheme.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
-import 'package:classipod/features/music/cover_flow/widgets/cover_flow_album_song_list_tile.dart';
+import 'package:classipod/features/music/cover_flow/widgets/album_song_list_panel.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+class CoverFlowAlbumSelectionRouteArgs {
+  final AlbumModel albumDetail;
+  final VoidCallback? onRouteReady;
+
+  const CoverFlowAlbumSelectionRouteArgs({
+    required this.albumDetail,
+    this.onRouteReady,
+  });
+}
+
 class CoverFlowAlbumSelectionScreen extends ConsumerStatefulWidget {
   final AlbumModel albumDetail;
+  final VoidCallback? onRouteReady;
 
-  const CoverFlowAlbumSelectionScreen({super.key, required this.albumDetail});
+  const CoverFlowAlbumSelectionScreen({
+    super.key,
+    required this.albumDetail,
+    this.onRouteReady,
+  });
 
   @override
   ConsumerState createState() => _CoverFlowAlbumSelectionScreenState();
@@ -25,67 +35,22 @@ class CoverFlowAlbumSelectionScreen extends ConsumerStatefulWidget {
 
 class _CoverFlowAlbumSelectionScreenState
     extends ConsumerState<CoverFlowAlbumSelectionScreen>
-    with CustomScreen, SingleTickerProviderStateMixin {
-  static const _openingDuration = Duration(milliseconds: 700);
-  static const _closingDuration = Duration(milliseconds: 1300);
-
-  late final AnimationController _transitionController;
-  late final Animation<double> _transitionAnimation;
-  late final Animation<double> _listAnimation;
-  bool _isLeaving = false;
+    with CustomScreen {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onRouteReady?.call();
+      }
+    });
+  }
 
   @override
   int get topStatusBarHeight => 60;
 
   @override
   String get routeName => Routes.coverFlowSelection.name;
-
-  @override
-  void initState() {
-    super.initState();
-    _transitionController = AnimationController(
-      vsync: this,
-      duration: _openingDuration,
-      reverseDuration: _closingDuration,
-    );
-    _transitionAnimation = CurvedAnimation(
-      parent: _transitionController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-    _listAnimation = CurvedAnimation(
-      parent: _transitionController,
-      curve: const Interval(0.42, 1, curve: Curves.easeOut),
-      reverseCurve: const Interval(0, 0.58, curve: Curves.easeIn),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        unawaited(_transitionController.forward());
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _transitionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void onMenuButtonPressed() {
-    if (_isLeaving) {
-      return;
-    }
-    _isLeaving = true;
-    unawaited(_leaveAlbum());
-  }
-
-  Future<void> _leaveAlbum() async {
-    await _transitionController.reverse();
-    if (mounted) {
-      context.pop();
-    }
-  }
 
   @override
   List<MusicMetadata> get displayItems => widget.albumDetail.albumSongs;
@@ -109,108 +74,19 @@ class _CoverFlowAlbumSelectionScreenState
     final int? currentlyPlayingOriginalIndex = ref
         .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
         ?.originalSongIndex;
-    return AnimatedBuilder(
-      animation: _transitionAnimation,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(40, 10, 40, 0),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.appBackgroundColor,
-            border: Border.all(color: context.appOutlineColor),
-          ),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 50,
-                width: double.infinity,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppColorScheme.coverFlowSelectedGradientStart
-                            .resolveFrom(context),
-                        AppColorScheme.coverFlowSelectedGradientEnd.resolveFrom(
-                          context,
-                        ),
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.albumDetail.albumName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: CupertinoColors.white,
-                          ),
-                          maxLines: 1,
-                        ),
-                        Text(
-                          widget.albumDetail.albumArtistName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: CupertinoColors.white,
-                          ),
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Flexible(
-                child: FadeTransition(
-                  opacity: _listAnimation,
-                  child: CupertinoScrollbar(
-                    controller: scrollController,
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: displayItems.length,
-                      prototypeItem: CoverFlowAlbumSongListTile(
-                        songName: '',
-                        songDuration: Duration.zero,
-                        isSelected: false,
-                        isCurrentlyPlaying: false,
-                        onTap: () {},
-                      ),
-                      itemBuilder: (context, index) =>
-                          CoverFlowAlbumSongListTile(
-                            songName: displayItems[index].getTrackName,
-                            songDuration: Duration(
-                              milliseconds:
-                                  displayItems[index].getTrackDuration,
-                            ),
-                            isSelected: selectedDisplayItem == index,
-                            isCurrentlyPlaying:
-                                currentlyPlayingOriginalIndex ==
-                                displayItems[index].originalSongIndex,
-                            onTap: () async => _playSongFromAlbum(index),
-                          ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(40, 10, 40, 0),
+      child: SizedBox(
+        width: AlbumSongListPanel.targetWidth(context),
+        height: AlbumSongListPanel.targetHeight(context),
+        child: AlbumSongListPanel(
+          album: widget.albumDetail,
+          selectedIndex: selectedDisplayItem,
+          currentlyPlayingOriginalIndex: currentlyPlayingOriginalIndex,
+          scrollController: scrollController,
+          onSongTap: _playSongFromAlbum,
         ),
       ),
-      builder: (context, child) {
-        final rotation = (1 - _transitionAnimation.value) * -(math.pi / 2);
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.0015)
-            ..rotateY(rotation),
-          child: child,
-        );
-      },
     );
   }
 }

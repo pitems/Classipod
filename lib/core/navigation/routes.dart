@@ -334,18 +334,24 @@ final routerProvider = Provider(
                             path: Routes.coverFlowSelection.name,
                             name: Routes.coverFlowSelection.name,
                             parentNavigatorKey: rootNavigatorKey,
-                            pageBuilder: (context, state) =>
-                                CustomTransitionPage(
-                                  opaque: false,
-                                  barrierColor: kCupertinoModalBarrierColor,
-                                  transitionDuration: Duration.zero,
-                                  reverseTransitionDuration: Duration.zero,
-                                  transitionsBuilder: (context, _, _, child) =>
-                                      child,
-                                  child: CoverFlowAlbumSelectionScreen(
-                                    albumDetail: state.extra as AlbumModel,
-                                  ),
-                                ),
+                            pageBuilder: (context, state) => CustomTransitionPage(
+                              opaque: false,
+                              barrierColor: kCupertinoModalBarrierColor,
+                              transitionDuration: Duration.zero,
+                              reverseTransitionDuration: Duration.zero,
+                              transitionsBuilder: (context, _, _, child) =>
+                                  child,
+                              child: CoverFlowAlbumSelectionScreen(
+                                albumDetail:
+                                    (state.extra
+                                            as CoverFlowAlbumSelectionRouteArgs)
+                                        .albumDetail,
+                                onRouteReady:
+                                    (state.extra
+                                            as CoverFlowAlbumSelectionRouteArgs)
+                                        .onRouteReady,
+                              ),
+                            ),
                           ),
                         ],
                       ),

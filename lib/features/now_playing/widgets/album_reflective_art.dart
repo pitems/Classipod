@@ -110,25 +110,19 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                 return Stack(
                   alignment: Alignment.center,
                   children: [
-                    Opacity(
-                      opacity: 1 - destinationProgress,
-                      child: Transform(
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.001)
-                          ..rotateY(sourceProgress * (pi / 2)),
-                        alignment: Alignment.center,
-                        child: child,
-                      ),
+                    Transform(
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.001)
+                        ..rotateY(sourceProgress * (pi / 2)),
+                      alignment: Alignment.center,
+                      child: child,
                     ),
-                    Opacity(
-                      opacity: destinationProgress,
-                      child: Transform(
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.001)
-                          ..rotateY((destinationProgress - 1) * (pi / 2)),
-                        alignment: Alignment.center,
-                        child: destinationWidget,
-                      ),
+                    Transform(
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.001)
+                        ..rotateY((1 - destinationProgress) * (pi / 2)),
+                      alignment: Alignment.center,
+                      child: destinationWidget,
                     ),
                   ],
                 );
