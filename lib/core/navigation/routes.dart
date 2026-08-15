@@ -338,12 +338,8 @@ final routerProvider = Provider(
                                 CustomTransitionPage(
                                   opaque: false,
                                   barrierColor: kCupertinoModalBarrierColor,
-                                  transitionDuration: const Duration(
-                                    milliseconds: 500,
-                                  ),
-                                  reverseTransitionDuration: const Duration(
-                                    milliseconds: 500,
-                                  ),
+                                  transitionDuration: Duration.zero,
+                                  reverseTransitionDuration: Duration.zero,
                                   transitionsBuilder: (context, _, _, child) =>
                                       child,
                                   child: CoverFlowAlbumSelectionScreen(

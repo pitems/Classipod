@@ -38,19 +38,27 @@ class StatusBar extends StatelessWidget {
     final borderColor = isDarkTheme
         ? AppPalette.darkStatusBarBorderColor
         : AppPalette.statusBarBorderColor;
+    final statusBarDecoration = showSepiaLayout
+        ? BoxDecoration(
+            color: isDarkTheme
+                ? const Color(0xFF1D1D1F)
+                : const Color(0xFFE3E3E3),
+            border: Border(bottom: BorderSide(color: borderColor)),
+          )
+        : BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: gradientColors,
+            ),
+            border: Border(bottom: BorderSide(color: borderColor)),
+          );
 
     return SizedBox(
       height: 30,
       width: double.infinity,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: gradientColors,
-          ),
-          border: Border(bottom: BorderSide(color: borderColor)),
-        ),
+        decoration: statusBarDecoration,
         child: showSepiaLayout
             ? _SepiaStatusBarContent(title: title)
             : Padding(
@@ -99,6 +107,11 @@ class _SepiaStatusBarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foregroundColor = CupertinoTheme.of(context).brightness ==
+            Brightness.dark
+        ? CupertinoColors.white
+        : CupertinoColors.black;
+
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -110,17 +123,16 @@ class _SepiaStatusBarContent extends StatelessWidget {
               child: Text(
                 title,
                 style: const TextStyle(
-                  color: CupertinoColors.black,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                ),
+                ).copyWith(color: foregroundColor),
                 maxLines: 1,
               ),
             ),
           ),
         ),
         const _CurrentTime(),
-        const Align(
+        Align(
           alignment: Alignment.centerRight,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -128,13 +140,13 @@ class _SepiaStatusBarContent extends StatelessWidget {
               Icon(
                 CupertinoIcons.volume_up,
                 size: 14,
-                color: CupertinoColors.black,
+                color: foregroundColor,
               ),
-              SizedBox(width: 6),
-              _PlaybackIndicator(),
-              SizedBox(width: 4),
-              RepaintBoundary(child: BatteryIndicator()),
-              SizedBox(width: 5),
+              const SizedBox(width: 6),
+              const _PlaybackIndicator(),
+              const SizedBox(width: 4),
+              const RepaintBoundary(child: BatteryIndicator()),
+              const SizedBox(width: 5),
             ],
           ),
         ),
@@ -193,12 +205,17 @@ class _CurrentTimeState extends State<_CurrentTime> {
 
   @override
   Widget build(BuildContext context) {
+    final foregroundColor = CupertinoTheme.of(context).brightness ==
+            Brightness.dark
+        ? CupertinoColors.white
+        : CupertinoColors.black;
+
     return Text(
       _time,
-      style: const TextStyle(
-        color: CupertinoColors.black,
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.bold,
+        color: foregroundColor,
       ),
     );
   }

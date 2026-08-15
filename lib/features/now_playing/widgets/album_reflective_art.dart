@@ -98,15 +98,39 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
               builder: (context, child) {
                 if (animation.value < 0.01 || animation.value > 0.999) {
                   unawaited(_controller.forward());
-                } else if (animation.isAnimating) {
-                  _controller.reset();
                 }
-                return Transform(
-                  transform: Matrix4.identity()..rotateY(animation.value * pi),
+                final progress = Curves.easeInOutCubic.transform(
+                  animation.value,
+                );
+                final sourceProgress = (progress * 2).clamp(0.0, 1.0);
+                final destinationProgress = ((progress - 0.5) * 2).clamp(
+                  0.0,
+                  1.0,
+                );
+                return Stack(
                   alignment: Alignment.center,
-                  child: (animation.value > 0.5)
-                      ? Transform.flip(flipX: true, child: destinationWidget)
-                      : child,
+                  children: [
+                    Opacity(
+                      opacity: 1 - destinationProgress,
+                      child: Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.001)
+                          ..rotateY(sourceProgress * (pi / 2)),
+                        alignment: Alignment.center,
+                        child: child,
+                      ),
+                    ),
+                    Opacity(
+                      opacity: destinationProgress,
+                      child: Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.001)
+                          ..rotateY((destinationProgress - 1) * (pi / 2)),
+                        alignment: Alignment.center,
+                        child: destinationWidget,
+                      ),
+                    ),
+                  ],
                 );
               },
               child: sourceWidget,
