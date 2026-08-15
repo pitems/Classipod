@@ -532,7 +532,7 @@ final routerProvider = Provider(
                             path: Routes.albumSongs.name,
                             name: Routes.albumSongs.name,
                             parentNavigatorKey: rootNavigatorKey,
-                            pageBuilder: (context, state) => _centerRevealPage(
+                            pageBuilder: (context, state) => _menuSlidePage(
                               child: AlbumSongsScreen(
                                 albumDetail: state.extra as AlbumModel,
                               ),

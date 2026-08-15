@@ -23,7 +23,7 @@ class AlbumTransitionCard extends StatefulWidget {
 class AlbumTransitionCardState extends State<AlbumTransitionCard>
     with SingleTickerProviderStateMixin {
   static const _openingDuration = Duration(milliseconds: 1000);
-  static const _closingDuration = Duration(milliseconds: 1300);
+  static const _closingDuration = Duration(milliseconds: 1050);
 
   late final AnimationController _controller;
   final ValueNotifier<bool> _titleAnimationEnabled = ValueNotifier(false);
