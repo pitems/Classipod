@@ -116,35 +116,44 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
               final height = 230.0 + ((targetHeight - 230.0) * heightProgress);
 
               return OverflowBox(
+                alignment: Alignment.topCenter,
                 maxWidth: targetWidth,
                 maxHeight: targetHeight,
                 child: Transform(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   transform: Matrix4.identity()
                     ..setEntry(3, 2, 0.0015)
                     ..rotateY(cardRotation),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Opacity(
-                        opacity: coverFade,
-                        child: SizedBox(width: 230, height: 230, child: cover),
-                      ),
-                      Opacity(
-                        opacity: listFade,
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.0015)
-                            ..rotateY(3.14159265359),
+                  child: SizedBox(
+                    width: width,
+                    height: height,
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Opacity(
+                          opacity: coverFade,
                           child: SizedBox(
-                            width: width,
-                            height: height,
-                            child: list,
+                            width: 230,
+                            height: 230,
+                            child: cover,
                           ),
                         ),
-                      ),
-                    ],
+                        Opacity(
+                          opacity: listFade,
+                          child: Transform(
+                            alignment: Alignment.topCenter,
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.0015)
+                              ..rotateY(3.14159265359),
+                            child: SizedBox(
+                              width: width,
+                              height: height,
+                              child: list,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

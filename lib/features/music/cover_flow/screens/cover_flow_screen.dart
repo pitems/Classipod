@@ -21,13 +21,17 @@ class CoverFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
-    with CustomPageScreen, SingleTickerProviderStateMixin {
+    with CustomPageScreen, TickerProviderStateMixin {
   static const _transitionDuration = Duration(milliseconds: 350);
+  static const _albumDimDuration = Duration(milliseconds: 900);
+  static int _lastCoverFlowIndex = 0;
 
   late final AnimationController _transitionController;
+  late final AnimationController _albumDimController;
   late final Animation<double> _transitionAnimation;
   final _selectedTransitionKey = GlobalKey<AlbumTransitionCardState>();
   bool _isLeaving = false;
+  bool _transitionActive = false;
 
   @override
   String get routeName => Routes.coverFlow.name;
@@ -44,10 +48,18 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   @override
   void initState() {
     super.initState();
+    currentPage = initialPage.toDouble();
+    selectedDisplayItem = initialPage;
+    pageController.addListener(_rememberCoverFlowPosition);
     _transitionController = AnimationController(
       vsync: this,
       duration: _transitionDuration,
       reverseDuration: _transitionDuration,
+    );
+    _albumDimController = AnimationController(
+      vsync: this,
+      duration: _albumDimDuration,
+      reverseDuration: _albumDimDuration,
     );
     _transitionAnimation = CurvedAnimation(
       parent: _transitionController,
@@ -64,10 +76,12 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   @override
   void dispose() {
     _transitionController.dispose();
+    _albumDimController.dispose();
     super.dispose();
   }
 
   Future<void> _leaveCoverFlow() async {
+    _selectedTransitionKey.currentState?.hideForRoute();
     final splitScreenAnimation = ref
         .read(splitScreenViewControllerProvider)
         .openSplitView();
@@ -100,7 +114,23 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   double get viewPortFraction => 0.54;
 
   @override
+  int get initialPage {
+    final itemCount = displayItems.length;
+    if (itemCount == 0) {
+      return 0;
+    }
+    return _lastCoverFlowIndex.clamp(0, itemCount - 1);
+  }
+
+  @override
   List<AlbumModel> get displayItems => ref.read(albumDetailsProvider);
+
+  void _rememberCoverFlowPosition() {
+    final page = pageController.page;
+    if (page != null) {
+      _lastCoverFlowIndex = page.round();
+    }
+  }
 
   @override
   void onSelectPressed() => _chooseAlbum(selectedDisplayItem);
@@ -111,7 +141,13 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
       unawaited(_openAlbumSelection(displayItems[index]));
       return;
     }
-    unawaited(transition.open());
+    setState(() => _transitionActive = true);
+    unawaited(_albumDimController.forward());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(transition.open());
+      }
+    });
   }
 
   Future<void> _openAlbumSelection(AlbumModel albumDetail) async {
@@ -125,7 +161,13 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
     );
     if (mounted) {
       transition?.showForClose();
-      await transition?.close();
+      await Future.wait([
+        transition?.close() ?? Future<void>.value(),
+        _albumDimController.reverse(),
+      ]);
+      if (mounted) {
+        setState(() => _transitionActive = false);
+      }
     }
   }
 
@@ -204,13 +246,17 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
                               ? Alignment.centerLeft
                               : Alignment.centerRight,
                           child: relativePosition == 0
-                              ? AlbumTransitionCard(
-                                  key: _selectedTransitionKey,
-                                  album: displayItems[index],
-                                  onOpenCompleted: () => unawaited(
-                                    _openAlbumSelection(displayItems[index]),
-                                  ),
-                                )
+                              ? _transitionActive
+                                    ? const SizedBox(width: 230, height: 230)
+                                    : AlbumTransitionCard(
+                                        key: _selectedTransitionKey,
+                                        album: displayItems[index],
+                                        onOpenCompleted: () => unawaited(
+                                          _openAlbumSelection(
+                                            displayItems[index],
+                                          ),
+                                        ),
+                                      )
                               : AlbumReflectiveArt(
                                   imageWidth: 230,
                                   thumbnailPath:
@@ -255,6 +301,32 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
                     ),
                   ),
                 ),
+                if (_transitionActive)
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: _albumDimController,
+                      builder: (context, _) => ColoredBox(
+                        color: CupertinoColors.black.withValues(
+                          alpha: 0.54 * _albumDimController.value,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_transitionActive)
+                  Positioned.fill(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: AlbumTransitionCard(
+                        key: _selectedTransitionKey,
+                        album: displayItems[selectedDisplayItem],
+                        onOpenCompleted: () => unawaited(
+                          _openAlbumSelection(
+                            displayItems[selectedDisplayItem],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

@@ -208,13 +208,23 @@ class SettingsPreferencesControllerNotifier
   }
 
   Future<void> toggleTouchScreen() async {
-    state = state.copyWith(isTouchScreenEnabled: !state.isTouchScreenEnabled);
+    await setTouchScreenEnabled(
+      isTouchScreenEnabled: !state.isTouchScreenEnabled,
+    );
+  }
+
+  Future<void> setTouchScreenEnabled({
+    required bool isTouchScreenEnabled,
+  }) async {
+    if (state.isTouchScreenEnabled == isTouchScreenEnabled) {
+      return;
+    }
+
+    state = state.copyWith(isTouchScreenEnabled: isTouchScreenEnabled);
 
     await ref
         .read(settingsPreferencesRepositoryProvider)
-        .setTouchScreenEnabled(
-          isTouchScreenEnabled: state.isTouchScreenEnabled,
-        );
+        .setTouchScreenEnabled(isTouchScreenEnabled: isTouchScreenEnabled);
   }
 
   Future<void> toggleRepeatMode() async {

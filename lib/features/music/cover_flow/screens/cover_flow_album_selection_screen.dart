@@ -75,7 +75,9 @@ class _CoverFlowAlbumSelectionScreenState
         .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
         ?.originalSongIndex;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 10, 40, 0),
+      // Match the cover-flow transition's content origin:
+      // 30px page offset + 10px cover-flow content offset.
+      padding: const EdgeInsets.fromLTRB(40, 40, 40, 0),
       child: SizedBox(
         width: AlbumSongListPanel.targetWidth(context),
         height: AlbumSongListPanel.targetHeight(context),
