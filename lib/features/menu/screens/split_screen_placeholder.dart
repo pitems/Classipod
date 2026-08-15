@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:classipod/core/extensions/build_context_extensions.dart';
+import 'package:classipod/core/extensions/go_router_extensions.dart';
+import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/features/menu/widgets/animated_album_art_scroller.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
+import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,6 +92,16 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     }
   }
 
+  String _currentTitle(BuildContext context) {
+    final routeName = context.router.locationNamed;
+    for (final route in Routes.values) {
+      if (route.name == routeName) {
+        return route.title(context);
+      }
+    }
+    return Routes.menu.title(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final splitScreenEnabled = ref.watch(
@@ -96,27 +110,39 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
       ),
     );
 
+    final content = splitScreenEnabled
+        ? Row(
+            children: [
+              Expanded(
+                child: SlideTransition(
+                  position: _leftSlideAnimation,
+                  child: RepaintBoundary(child: widget.child),
+                ),
+              ),
+              Expanded(
+                child: SlideTransition(
+                  position: _rightSlideAnimation,
+                  child: const RepaintBoundary(
+                    child: AnimatedAlbumArtScroller(),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : widget.child;
+
     return CupertinoPageScaffold(
-      child: splitScreenEnabled
-          ? Row(
-              children: [
-                Expanded(
-                  child: SlideTransition(
-                    position: _leftSlideAnimation,
-                    child: RepaintBoundary(child: widget.child),
-                  ),
-                ),
-                Expanded(
-                  child: SlideTransition(
-                    position: _rightSlideAnimation,
-                    child: const RepaintBoundary(
-                      child: AnimatedAlbumArtScroller(),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : widget.child,
+      child: Column(
+        children: [
+          StatusBar(
+            title: _currentTitle(context),
+            showSepiaLayout: true,
+          ),
+          Expanded(
+            child: StatusBarScope(child: content),
+          ),
+        ],
+      ),
     );
   }
 }
