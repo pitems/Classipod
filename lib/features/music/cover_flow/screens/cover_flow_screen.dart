@@ -20,9 +20,79 @@ class CoverFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
-    with CustomPageScreen {
+    with CustomPageScreen, SingleTickerProviderStateMixin {
+  static const _transitionDuration = Duration(milliseconds: 350);
+
+  late final AnimationController _transitionController;
+  late final Animation<double> _transitionAnimation;
+  bool _isLeaving = false;
+
   @override
   String get routeName => Routes.coverFlow.name;
+
+  @override
+  void onMenuButtonPressed() {
+    if (_isLeaving) {
+      return;
+    }
+    _isLeaving = true;
+    unawaited(_leaveCoverFlow());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _transitionController = AnimationController(
+      vsync: this,
+      duration: _transitionDuration,
+      reverseDuration: _transitionDuration,
+    );
+    _transitionAnimation = CurvedAnimation(
+      parent: _transitionController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_transitionController.forward());
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transitionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _leaveCoverFlow() async {
+    final splitScreenAnimation = ref
+        .read(splitScreenViewControllerProvider)
+        .openSplitView();
+    await _transitionController.reverse();
+    await splitScreenAnimation;
+    if (mounted) {
+      context.pop();
+    }
+  }
+
+  Widget _withTransition(Widget child) {
+    return AnimatedBuilder(
+      animation: _transitionAnimation,
+      child: child,
+      builder: (context, child) {
+        return ClipRect(
+          child: Align(
+            child: FractionallySizedBox(
+              widthFactor: _transitionAnimation.value,
+              heightFactor: 1,
+              child: RepaintBoundary(child: child),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   double get viewPortFraction => 0.54;
@@ -43,108 +113,112 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   @override
   Widget build(BuildContext context) {
     if (displayItems.isEmpty) {
-      return CupertinoPageScaffold(
-        child: Column(
-          children: [
-            StatusBar(title: Routes.coverFlow.title(context)),
-            Expanded(
-              child: EmptyStateWidget(
-                emptyDescription: context.localization.noMusicFilesFound,
+      return _withTransition(
+        CupertinoPageScaffold(
+          child: Column(
+            children: [
+              StatusBar(title: Routes.coverFlow.title(context)),
+              Expanded(
+                child: EmptyStateWidget(
+                  emptyDescription: context.localization.noMusicFilesFound,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
-    return CupertinoPageScaffold(
-      child: Column(
-        children: [
-          StatusBar(title: Routes.coverFlow.title(context)),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                SizedBox(
-                  height: 230,
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: displayItems.length,
-                    itemBuilder: (context, index) {
-                      final double relativePosition = index - currentPage;
-                      return GestureDetector(
-                        onTap: relativePosition == 0
-                            ? () => _chooseAlbum(index)
-                            : () async => pageController.animateToPage(
-                                index,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.ease,
-                              ),
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.003)
-                            ..scaleByDouble(
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              1,
-                            )
-                            ..rotateY(relativePosition * 0.9),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: AlbumReflectiveArt(
-                            imageWidth: 230,
-                            thumbnailPath: displayItems[index].albumArtPath,
-                            isOnDevice: displayItems[index].isOnDevice(),
-                            heroTag:
-                                "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
+    return _withTransition(
+      CupertinoPageScaffold(
+        child: Column(
+          children: [
+            StatusBar(title: Routes.coverFlow.title(context)),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    height: 230,
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: displayItems.length,
+                      itemBuilder: (context, index) {
+                        final double relativePosition = index - currentPage;
+                        return GestureDetector(
+                          onTap: relativePosition == 0
+                              ? () => _chooseAlbum(index)
+                              : () async => pageController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.ease,
+                                ),
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.003)
+                              ..scaleByDouble(
+                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                    0.4,
+                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                    0.4,
+                                (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                    0.4,
+                                1,
+                              )
+                              ..rotateY(relativePosition * 0.9),
+                            alignment: relativePosition >= 0
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: AlbumReflectiveArt(
+                              imageWidth: 230,
+                              thumbnailPath: displayItems[index].albumArtPath,
+                              isOnDevice: displayItems[index].isOnDevice(),
+                              heroTag:
+                                  "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        Text(
-                          displayItems[selectedDisplayItem].albumName,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          displayItems[selectedDisplayItem].albumArtistName,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          Text(
+                            displayItems[selectedDisplayItem].albumName,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            displayItems[selectedDisplayItem].albumArtistName,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-        ],
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }

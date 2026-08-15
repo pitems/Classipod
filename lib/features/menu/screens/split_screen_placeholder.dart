@@ -34,6 +34,7 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
   bool _isScreenVisible = false;
   late final AnimationController _animationController;
   late final Animation<Offset> _leftSlideAnimation;
+  late final Animation<Offset> _rightSlideAnimation;
 
   @override
   void initState() {
@@ -46,7 +47,23 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     _leftSlideAnimation = Tween<Offset>(
       begin: const Offset(-1, 0),
       end: Offset.zero,
-    ).animate(_animationController);
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ),
+    );
+    _rightSlideAnimation = Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ),
+    );
     unawaited(_forwardAnimation());
     super.initState();
   }
@@ -86,10 +103,17 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
                 Expanded(
                   child: SlideTransition(
                     position: _leftSlideAnimation,
-                    child: widget.child,
+                    child: RepaintBoundary(child: widget.child),
                   ),
                 ),
-                const Expanded(child: AnimatedAlbumArtScroller()),
+                Expanded(
+                  child: SlideTransition(
+                    position: _rightSlideAnimation,
+                    child: const RepaintBoundary(
+                      child: AnimatedAlbumArtScroller(),
+                    ),
+                  ),
+                ),
               ],
             )
           : widget.child,

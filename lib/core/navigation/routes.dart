@@ -319,23 +319,12 @@ final routerProvider = Provider(
                                   .read(settingsPreferencesControllerProvider)
                                   .splitScreenEnabled) {
                             return CustomTransitionPage(
+                              opaque: false,
+                              transitionDuration: Duration.zero,
+                              reverseTransitionDuration: Duration.zero,
                               child: const CoverFlowScreen(),
-                              transitionsBuilder:
-                                  (
-                                    context,
-                                    animation,
-                                    reversedAnimation,
-                                    child,
-                                  ) {
-                                    return FadeTransition(
-                                      opacity: CurvedAnimation(
-                                        parent: animation,
-                                        curve: Curves.easeInQuint,
-                                        reverseCurve: Curves.easeOutQuint,
-                                      ),
-                                      child: child,
-                                    );
-                                  },
+                              transitionsBuilder: (context, _, _, child) =>
+                                  child,
                             );
                           }
                           return const CupertinoPage(child: CoverFlowScreen());
