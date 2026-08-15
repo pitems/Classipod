@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/constants/keys.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
@@ -36,6 +38,7 @@ import 'package:classipod/features/settings/screens/exclude_directories_screen.d
 import 'package:classipod/features/settings/screens/language_selection_screen.dart';
 import 'package:classipod/features/settings/screens/settings_preferences_screen.dart';
 import 'package:classipod/features/sleep_timer/screens/sleep_timer_screen.dart';
+import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -152,6 +155,119 @@ final splitScreenViewControllerProvider = Provider<SplitScreenViewController>((
   return SplitScreenViewController();
 });
 
+CustomTransitionPage<void> _centerRevealPage({required Widget child}) {
+  return CustomTransitionPage<void>(
+    opaque: false,
+    transitionDuration: const Duration(milliseconds: 600),
+    reverseTransitionDuration: const Duration(milliseconds: 700),
+    child: StatusBarScope(child: child),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final revealAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOutCubic,
+        reverseCurve: Curves.easeInOutCubic,
+      );
+
+      return FadeTransition(
+        opacity: revealAnimation,
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            Expanded(
+              child: ClipRect(
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.diagonal3Values(
+                    revealAnimation.value,
+                    1,
+                    1,
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+CustomTransitionPage<void> _menuSlidePage({required Widget child}) {
+  return CustomTransitionPage<void>(
+    transitionDuration: const Duration(milliseconds: 500),
+    reverseTransitionDuration: const Duration(milliseconds: 500),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final incomingPosition =
+          Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic),
+          );
+      final outgoingPosition =
+          Tween<Offset>(begin: Offset.zero, end: const Offset(-1, 0)).animate(
+            CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: Curves.easeInOutCubic,
+            ),
+          );
+      final opacity = animation.drive(Tween<double>(begin: 0, end: 1));
+      final outgoingOpacity = secondaryAnimation.drive(
+        Tween<double>(begin: 1, end: 0),
+      );
+
+      return SlideTransition(
+        position: outgoingPosition,
+        child: FadeTransition(
+          opacity: outgoingOpacity,
+          child: SlideTransition(
+            position: incomingPosition,
+            child: FadeTransition(opacity: opacity, child: child),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+CustomTransitionPage<void> _nowPlayingPage({
+  required String title,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    opaque: false,
+    transitionDuration: const Duration(milliseconds: 650),
+    reverseTransitionDuration: const Duration(milliseconds: 650),
+    child: StatusBarScope(child: child),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final progress = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOutCubic,
+        reverseCurve: Curves.easeInOutCubic,
+      );
+
+      return Column(
+        children: [
+          StatusBar(title: title),
+          Expanded(
+            child: FadeTransition(
+              opacity: progress,
+              child: ClipRect(
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.002)
+                    ..rotateY((1 - progress.value) * 1.5708),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 // GoRouter configuration
 final routerProvider = Provider(
   (ref) => GoRouter(
@@ -254,29 +370,10 @@ final routerProvider = Provider(
                     path: Routes.nowPlaying.toString(),
                     name: Routes.nowPlaying.name,
                     parentNavigatorKey: rootNavigatorKey,
-                    pageBuilder: (context, state) {
-                      if (state.extra == Routes.menu.name &&
-                          ref
-                              .read(settingsPreferencesControllerProvider)
-                              .splitScreenEnabled) {
-                        return CustomTransitionPage(
-                          child: const NowPlayingScreen(),
-                          transitionsBuilder:
-                              (context, animation, reversedAnimation, child) {
-                                return FadeTransition(
-                                  opacity: CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeInQuint,
-                                    reverseCurve: Curves.easeOutQuint,
-                                  ),
-                                  child: child,
-                                );
-                              },
-                        );
-                      }
-
-                      return const CupertinoPage(child: NowPlayingScreen());
-                    },
+                    pageBuilder: (context, state) => _nowPlayingPage(
+                      title: Routes.nowPlaying.title(context),
+                      child: const NowPlayingScreen(),
+                    ),
                     routes: [
                       GoRoute(
                         path: Routes.nowPlayingMoreOptions.name,
@@ -307,28 +404,22 @@ final routerProvider = Provider(
                     name: Routes.musicMenu.name,
                     parentNavigatorKey: menuNavigatorKey,
                     pageBuilder: (context, state) =>
-                        const CupertinoPage(child: MusicMenuScreen()),
+                        _menuSlidePage(child: const MusicMenuScreen()),
                     routes: [
                       GoRoute(
                         path: Routes.coverFlow.name,
                         name: Routes.coverFlow.name,
                         parentNavigatorKey: rootNavigatorKey,
-                        pageBuilder: (context, state) {
-                          if (state.extra == Routes.musicMenu.name &&
-                              ref
-                                  .read(settingsPreferencesControllerProvider)
-                                  .splitScreenEnabled) {
-                            return CustomTransitionPage(
-                              opaque: false,
-                              transitionDuration: Duration.zero,
-                              reverseTransitionDuration: Duration.zero,
-                              child: const CoverFlowScreen(),
-                              transitionsBuilder: (context, _, _, child) =>
-                                  child,
-                            );
-                          }
-                          return const CupertinoPage(child: CoverFlowScreen());
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
                         },
+                        pageBuilder: (context, state) =>
+                            _centerRevealPage(child: const CoverFlowScreen()),
                         routes: [
                           GoRoute(
                             path: Routes.coverFlowSelection.name,
@@ -362,8 +453,16 @@ final routerProvider = Provider(
                         path: Routes.artists.name,
                         name: Routes.artists.name,
                         parentNavigatorKey: rootNavigatorKey,
-                        pageBuilder: (context, state) => const CupertinoPage(
-                          child: ArtistsSelectionScreen(),
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
+                        pageBuilder: (context, state) => _centerRevealPage(
+                          child: const ArtistsSelectionScreen(),
                         ),
                         routes: [
                           GoRoute(
@@ -405,8 +504,17 @@ final routerProvider = Provider(
                         path: Routes.albums.name,
                         name: Routes.albums.name,
                         parentNavigatorKey: rootNavigatorKey,
-                        pageBuilder: (context, state) =>
-                            const CupertinoPage(child: AlbumsSelectionScreen()),
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
+                        pageBuilder: (context, state) => _centerRevealPage(
+                          child: const AlbumsSelectionScreen(),
+                        ),
                         routes: [
                           GoRoute(
                             path: Routes.albumSongs.name,
@@ -460,10 +568,16 @@ final routerProvider = Provider(
                         path: Routes.playlists.name,
                         name: Routes.playlists.name,
                         parentNavigatorKey: rootNavigatorKey,
-                        pageBuilder: (context, state) => const CupertinoPage(
-                          maintainState: false,
-                          child: PlaylistsScreen(),
-                        ),
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
+                        pageBuilder: (context, state) =>
+                            _centerRevealPage(child: const PlaylistsScreen()),
                         routes: [
                           GoRoute(
                             path: Routes.playlistSongs.name,
@@ -508,8 +622,16 @@ final routerProvider = Provider(
                         path: Routes.songs.name,
                         name: Routes.songs.name,
                         parentNavigatorKey: rootNavigatorKey,
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
                         pageBuilder: (context, state) =>
-                            const CupertinoPage(child: SongsScreen()),
+                            _centerRevealPage(child: const SongsScreen()),
                         routes: [
                           GoRoute(
                             path: Routes.songsMoreOptions.name,
@@ -531,8 +653,16 @@ final routerProvider = Provider(
                         path: Routes.genres.toString(),
                         name: Routes.genres.name,
                         parentNavigatorKey: rootNavigatorKey,
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
                         pageBuilder: (context, state) =>
-                            const CupertinoPage(child: GenresScreen()),
+                            _centerRevealPage(child: const GenresScreen()),
                         routes: [
                           GoRoute(
                             path: ":genreName",
@@ -572,8 +702,16 @@ final routerProvider = Provider(
                         path: Routes.search.name,
                         name: Routes.search.name,
                         parentNavigatorKey: rootNavigatorKey,
+                        onExit: (context, state) {
+                          unawaited(
+                            ref
+                                .read(splitScreenViewControllerProvider)
+                                .openSplitView(),
+                          );
+                          return true;
+                        },
                         pageBuilder: (context, state) =>
-                            const CupertinoPage(child: SearchScreen()),
+                            _centerRevealPage(child: const SearchScreen()),
                         routes: [
                           GoRoute(
                             path: Routes.searchMoreOptions.name,

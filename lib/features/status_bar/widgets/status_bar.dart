@@ -15,7 +15,7 @@ class StatusBar extends StatelessWidget {
   const StatusBar({
     super.key,
     required this.title,
-    this.showSepiaLayout = false,
+    this.showSepiaLayout = true,
   });
 
   @override
@@ -107,8 +107,8 @@ class _SepiaStatusBarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foregroundColor = CupertinoTheme.of(context).brightness ==
-            Brightness.dark
+    final foregroundColor =
+        CupertinoTheme.of(context).brightness == Brightness.dark
         ? CupertinoColors.white
         : CupertinoColors.black;
 
@@ -137,11 +137,7 @@ class _SepiaStatusBarContent extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                CupertinoIcons.volume_up,
-                size: 14,
-                color: foregroundColor,
-              ),
+              Icon(CupertinoIcons.volume_up, size: 14, color: foregroundColor),
               const SizedBox(width: 6),
               const _PlaybackIndicator(),
               const SizedBox(width: 4),
@@ -205,8 +201,8 @@ class _CurrentTimeState extends State<_CurrentTime> {
 
   @override
   Widget build(BuildContext context) {
-    final foregroundColor = CupertinoTheme.of(context).brightness ==
-            Brightness.dark
+    final foregroundColor =
+        CupertinoTheme.of(context).brightness == Brightness.dark
         ? CupertinoColors.white
         : CupertinoColors.black;
 

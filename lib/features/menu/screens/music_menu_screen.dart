@@ -71,27 +71,35 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
           Routes.coverFlow.name,
           extra: Routes.musicMenu.name,
         );
-        unawaited(ref.read(splitScreenViewControllerProvider).openSplitView());
         break;
       case _MusicListDisplayItems.playlists:
-        context.goNamed(Routes.playlists.name);
+        await _openSection(Routes.playlists.name);
         break;
       case _MusicListDisplayItems.artists:
-        context.goNamed(Routes.artists.name);
+        await _openSection(Routes.artists.name);
         break;
       case _MusicListDisplayItems.albums:
-        context.goNamed(Routes.albums.name);
+        await _openSection(Routes.albums.name);
         break;
       case _MusicListDisplayItems.songs:
-        context.goNamed(Routes.songs.name);
+        await _openSection(Routes.songs.name);
         break;
       case _MusicListDisplayItems.genres:
-        context.goNamed(Routes.genres.name);
+        await _openSection(Routes.genres.name);
         break;
       case _MusicListDisplayItems.search:
-        context.goNamed(Routes.search.name);
+        await _openSection(Routes.search.name);
         break;
     }
+  }
+
+  Future<void> _openSection(String routeName) async {
+    final splitScreenController = ref.read(splitScreenViewControllerProvider);
+    unawaited(splitScreenController.closeSplitView());
+    if (!mounted) {
+      return;
+    }
+    await context.pushNamed(routeName);
   }
 
   @override
@@ -113,6 +121,7 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
                 itemBuilder: (context, index) => DisplayListTile(
                   text: displayItems[index].title(context),
                   isSelected: selectedDisplayItem == index,
+                  isAlternate: index.isOdd,
                   onTap: () async => _navigateToScreen(displayItems[index]),
                 ),
               ),

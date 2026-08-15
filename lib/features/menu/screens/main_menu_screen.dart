@@ -63,7 +63,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
     setState(() => selectedDisplayItem = displayItems.indexOf(menuItem));
     switch (menuItem) {
       case _MainMenuDisplayItems.music:
-        context.goNamed(Routes.musicMenu.name);
+        await context.pushNamed(Routes.musicMenu.name);
         break;
       case _MainMenuDisplayItems.nowPlaying:
         await _navigateToNowPlayingScreen();
@@ -148,6 +148,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
                     key: ValueKey(displayItems[index]),
                     text: displayItems[index].title(context),
                     isSelected: selectedDisplayItem == index,
+                    isAlternate: index.isOdd,
                     onTap: () async => _navigateToScreen(displayItems[index]),
                   );
                 },

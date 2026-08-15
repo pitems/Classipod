@@ -45,29 +45,25 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     widget.splitScreenController._state = this;
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
-      reverseDuration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 600),
+      reverseDuration: const Duration(milliseconds: 700),
     );
-    _leftSlideAnimation = Tween<Offset>(
-      begin: const Offset(-1, 0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      ),
-    );
-    _rightSlideAnimation = Tween<Offset>(
-      begin: const Offset(1, 0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      ),
-    );
+    _leftSlideAnimation =
+        Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOutCubic,
+            reverseCurve: Curves.easeInOutCubic,
+          ),
+        );
+    _rightSlideAnimation =
+        Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOutCubic,
+            reverseCurve: Curves.easeInOutCubic,
+          ),
+        );
     unawaited(_forwardAnimation());
     super.initState();
   }
@@ -134,13 +130,8 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     return CupertinoPageScaffold(
       child: Column(
         children: [
-          StatusBar(
-            title: _currentTitle(context),
-            showSepiaLayout: true,
-          ),
-          Expanded(
-            child: StatusBarScope(child: content),
-          ),
+          StatusBar(title: _currentTitle(context)),
+          Expanded(child: StatusBarScope(child: content)),
         ],
       ),
     );

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
@@ -10,6 +10,7 @@ import 'package:classipod/features/music/playlist/providers/playlists_provider.d
 import 'package:classipod/features/music/songs/provider/songs_provider.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:classipod/features/tutorial/controller/tutorial_controller.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -73,9 +74,44 @@ class SplashControllerNotifier extends AsyncNotifier<void> {
 
     // Load the playlists
     ref.read(playlistsProvider.notifier).refreshProvider();
+  }
 
-    // Navigate to the menu screen
-    ref.read(routerProvider).goNamed(Routes.menu.name);
+  Future<void> preloadForFirstFrame(BuildContext context) async {
+    // Force the providers used by the primary library screens to build while
+    // the splash screen is still visible.
+    final albums = ref.read(albumDetailsProvider);
+    ref.read(artistNamesProvider);
+    ref.read(songsProvider);
+    ref.read(genresProvider);
+    ref.read(playlistsProvider);
+
+    final imageProviders = <ImageProvider<Object>>[
+      const AssetImage(Assets.appIcon),
+      const AssetImage(Assets.defaultAlbumCoverImage),
+    ];
+
+    // Warm the first visible batch rather than retaining every original-size
+    // cover in memory. Cover Flow continues warming nearby covers as needed.
+    for (final album in albums.take(12)) {
+      final path = album.albumArtPath;
+      if (path == null || path.isEmpty || !album.isOnDevice()) {
+        continue;
+      }
+      final file = File(path);
+      if (file.existsSync()) {
+        imageProviders.add(FileImage(file));
+      }
+    }
+
+    await Future.wait(
+      imageProviders.map((image) async {
+        try {
+          await precacheImage(image, context);
+        } catch (_) {
+          // Individual artwork failures should never block startup.
+        }
+      }),
+    );
   }
 }
 

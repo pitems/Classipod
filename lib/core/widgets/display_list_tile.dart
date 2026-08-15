@@ -5,24 +5,38 @@ import 'package:flutter/cupertino.dart';
 class DisplayListTile extends StatelessWidget {
   final String text;
   final bool isSelected;
+  final bool isAlternate;
   final VoidCallback? onTap;
 
   const DisplayListTile({
     super.key,
     required this.text,
     required this.isSelected,
+    this.isAlternate = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme =
+        CupertinoTheme.of(context).brightness == Brightness.dark;
+    final alternateColor = isDarkTheme
+        ? const Color(0xFF242424)
+        : const Color(0xFFE8E8E8);
+    final baseColor = isDarkTheme
+        ? const Color(0xFF151515)
+        : CupertinoColors.white;
+
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        height: 30,
+        height: 44,
         width: double.infinity,
         child: DecoratedBox(
           decoration: BoxDecoration(
+            color: isSelected
+                ? null
+                : (isAlternate ? alternateColor : baseColor),
             border: isSelected
                 ? const Border(
                     top: BorderSide(
@@ -45,7 +59,7 @@ class DisplayListTile extends StatelessWidget {
                 : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -54,20 +68,21 @@ class DisplayListTile extends StatelessWidget {
                     text,
                     style: CupertinoTheme.of(context).textTheme.textStyle
                         .copyWith(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: isSelected
-                              ? context.appInverseTextColor
+                              ? CupertinoColors.white
                               : context.appPrimaryTextColor,
                         ),
                     maxLines: 1,
                   ),
                 ),
-                if (isSelected)
-                  Icon(
-                    CupertinoIcons.right_chevron,
-                    color: context.appInverseTextColor,
-                  ),
+                Icon(
+                  CupertinoIcons.right_chevron,
+                  color: isSelected
+                      ? CupertinoColors.white
+                      : context.appSecondaryTextColor,
+                ),
               ],
             ),
           ),

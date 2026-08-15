@@ -13,7 +13,7 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   int selectedDisplayItem = 0;
   int extraDisplayItems = 0;
   int topStatusBarHeight = 30;
-  final double displayTileHeight = 30;
+  final double displayTileHeight = 44;
   final ScrollController scrollController = ScrollController();
 
   void onSelectPressed();

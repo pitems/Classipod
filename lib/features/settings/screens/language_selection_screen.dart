@@ -53,6 +53,7 @@ class _LanguageSelectionScreenState
                 itemBuilder: (context, index) => DisplayListTile(
                   text: displayItems[index].getNativeLanguageName(),
                   isSelected: selectedDisplayItem == index,
+                  isAlternate: index.isOdd,
                   onTap: () async => _selectLanguage(index),
                 ),
               ),

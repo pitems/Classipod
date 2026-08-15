@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -24,13 +23,10 @@ class CoverFlowScreen extends ConsumerStatefulWidget {
 
 class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
     with CustomPageScreen, TickerProviderStateMixin {
-  static const _transitionDuration = Duration(milliseconds: 350);
   static const _albumDimDuration = Duration(milliseconds: 900);
   static int _lastCoverFlowIndex = 0;
 
-  late final AnimationController _transitionController;
   late final AnimationController _albumDimController;
-  late final Animation<double> _transitionAnimation;
   final _selectedTransitionKey = GlobalKey<AlbumTransitionCardState>();
   bool _isLeaving = false;
   bool _transitionActive = false;
@@ -53,86 +49,23 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
     currentPage = initialPage.toDouble();
     selectedDisplayItem = initialPage;
     pageController.addListener(_rememberCoverFlowPosition);
-    _transitionController = AnimationController(
-      vsync: this,
-      duration: _transitionDuration,
-      reverseDuration: _transitionDuration,
-    );
     _albumDimController = AnimationController(
       vsync: this,
       duration: _albumDimDuration,
       reverseDuration: _albumDimDuration,
     );
-    _transitionAnimation = CurvedAnimation(
-      parent: _transitionController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_startEntranceTransition());
-    });
-  }
-
-  Future<void> _startEntranceTransition() async {
-    if (!mounted) {
-      return;
-    }
-
-    final album = displayItems.elementAtOrNull(selectedDisplayItem);
-    final artworkPath = album?.albumArtPath;
-    if (album != null && artworkPath != null && album.isOnDevice()) {
-      unawaited(_precacheArtwork(FileImage(File(artworkPath))));
-    }
-
-    await WidgetsBinding.instance.endOfFrame;
-    if (mounted) {
-      unawaited(_transitionController.forward());
-    }
-  }
-
-  Future<void> _precacheArtwork(ImageProvider<Object> image) async {
-    try {
-      await precacheImage(image, context);
-    } catch (_) {
-      // AlbumReflectiveArt will display its normal fallback if decoding fails.
-    }
   }
 
   @override
   void dispose() {
-    _transitionController.dispose();
     _albumDimController.dispose();
     super.dispose();
   }
 
   Future<void> _leaveCoverFlow() async {
-    _selectedTransitionKey.currentState?.hideForRoute();
-    final splitScreenAnimation = ref
-        .read(splitScreenViewControllerProvider)
-        .openSplitView();
-    await _transitionController.reverse();
-    await splitScreenAnimation;
     if (mounted) {
       context.pop();
     }
-  }
-
-  Widget _withTransition(Widget child) {
-    return AnimatedBuilder(
-      animation: _transitionAnimation,
-      child: child,
-      builder: (context, child) {
-        return ClipRect(
-          child: Align(
-            child: FractionallySizedBox(
-              widthFactor: _transitionAnimation.value,
-              heightFactor: 1,
-              child: RepaintBoundary(child: child),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -204,16 +137,7 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   Widget _buildTransparentPage(BuildContext context, Widget content) {
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.transparent,
-      child: Column(
-        children: [
-          const SizedBox(height: 30),
-          Expanded(
-            child: _withTransition(
-              ColoredBox(color: context.appBackgroundColor, child: content),
-            ),
-          ),
-        ],
-      ),
+      child: ColoredBox(color: context.appBackgroundColor, child: content),
     );
   }
 

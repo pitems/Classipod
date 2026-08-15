@@ -97,6 +97,7 @@ class _ArtistsSelectionScreenState extends ConsumerState<ArtistsSelectionScreen>
                   return DisplayListTile(
                     text: displayItems[index - 1],
                     isSelected: selectedDisplayItem == index,
+                    isAlternate: index.isOdd,
                     onTap: () => _selectArtist(index),
                   );
                 },
