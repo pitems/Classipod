@@ -229,7 +229,7 @@ CustomTransitionPage<void> _menuSlidePage({required Widget child}) {
   );
 }
 
-CustomTransitionPage<void> _nowPlayingPage({
+CustomTransitionPage<void> _coverFlowNowPlayingPage({
   required String title,
   required Widget child,
 }) {
@@ -244,20 +244,27 @@ CustomTransitionPage<void> _nowPlayingPage({
         curve: Curves.easeInOutCubic,
         reverseCurve: Curves.easeInOutCubic,
       );
+      final incomingPosition = Tween<Offset>(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(progress);
 
       return Column(
         children: [
           StatusBar(title: title),
           Expanded(
-            child: FadeTransition(
-              opacity: progress,
-              child: ClipRect(
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..setEntry(3, 2, 0.002)
-                    ..rotateY((1 - progress.value) * 1.5708),
-                  child: child,
+            child: SlideTransition(
+              position: incomingPosition,
+              child: FadeTransition(
+                opacity: progress,
+                child: ClipRect(
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.002)
+                      ..rotateY((1 - progress.value) * 1.5708),
+                    child: child,
+                  ),
                 ),
               ),
             ),
@@ -370,10 +377,15 @@ final routerProvider = Provider(
                     path: Routes.nowPlaying.toString(),
                     name: Routes.nowPlaying.name,
                     parentNavigatorKey: rootNavigatorKey,
-                    pageBuilder: (context, state) => _nowPlayingPage(
-                      title: Routes.nowPlaying.title(context),
-                      child: const NowPlayingScreen(),
-                    ),
+                    pageBuilder: (context, state) {
+                      if (state.extra == Routes.coverFlowSelection.name) {
+                        return _coverFlowNowPlayingPage(
+                          title: Routes.nowPlaying.title(context),
+                          child: const NowPlayingScreen(),
+                        );
+                      }
+                      return _menuSlidePage(child: const NowPlayingScreen());
+                    },
                     routes: [
                       GoRoute(
                         path: Routes.nowPlayingMoreOptions.name,
@@ -520,7 +532,7 @@ final routerProvider = Provider(
                             path: Routes.albumSongs.name,
                             name: Routes.albumSongs.name,
                             parentNavigatorKey: rootNavigatorKey,
-                            pageBuilder: (context, state) => CupertinoPage(
+                            pageBuilder: (context, state) => _centerRevealPage(
                               child: AlbumSongsScreen(
                                 albumDetail: state.extra as AlbumModel,
                               ),

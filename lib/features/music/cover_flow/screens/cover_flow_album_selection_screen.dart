@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -41,15 +43,34 @@ class CoverFlowAlbumSelectionScreen extends ConsumerStatefulWidget {
 
 class _CoverFlowAlbumSelectionScreenState
     extends ConsumerState<CoverFlowAlbumSelectionScreen>
-    with CustomScreen {
+    with CustomScreen, SingleTickerProviderStateMixin {
+  late final AnimationController _nowPlayingTransitionController;
+  late final Animation<double> _nowPlayingTransition;
+
   @override
   void initState() {
     super.initState();
+    _nowPlayingTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+      reverseDuration: const Duration(milliseconds: 650),
+    );
+    _nowPlayingTransition = CurvedAnimation(
+      parent: _nowPlayingTransitionController,
+      curve: Curves.easeInOutCubic,
+      reverseCurve: Curves.easeInOutCubic,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         widget.onRouteReady?.call();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _nowPlayingTransitionController.dispose();
+    super.dispose();
   }
 
   @override
@@ -115,7 +136,14 @@ class _CoverFlowAlbumSelectionScreenState
         .playAlbum(albumDetail: widget.albumDetail, songIndex: index);
 
     if (mounted) {
-      await context.pushNamed(Routes.nowPlaying.name);
+      unawaited(_nowPlayingTransitionController.forward());
+      await context.pushNamed(
+        Routes.nowPlaying.name,
+        extra: Routes.coverFlowSelection.name,
+      );
+      if (mounted) {
+        await _nowPlayingTransitionController.reverse();
+      }
     }
   }
 
@@ -128,16 +156,29 @@ class _CoverFlowAlbumSelectionScreenState
       // Match the cover-flow transition's content origin:
       // Keep the list 10px from each side and under the top bar.
       padding: const EdgeInsets.fromLTRB(10, 40, 10, 0),
-      child: SizedBox(
-        width: AlbumSongListPanel.targetWidth(context),
-        height: AlbumSongListPanel.targetHeight(context),
-        child: AlbumSongListPanel(
-          album: widget.albumDetail,
-          titleAnimationEnabled: widget.titleAnimationEnabled,
-          selectedIndex: selectedDisplayItem,
-          currentlyPlayingOriginalIndex: currentlyPlayingOriginalIndex,
-          scrollController: scrollController,
-          onSongTap: _playSongFromAlbum,
+      child: AnimatedBuilder(
+        animation: _nowPlayingTransition,
+        builder: (context, child) => Opacity(
+          opacity: 1 - _nowPlayingTransition.value,
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.002)
+              ..rotateY(-_nowPlayingTransition.value * 3.14159265359),
+            child: child,
+          ),
+        ),
+        child: SizedBox(
+          width: AlbumSongListPanel.targetWidth(context),
+          height: AlbumSongListPanel.targetHeight(context),
+          child: AlbumSongListPanel(
+            album: widget.albumDetail,
+            titleAnimationEnabled: widget.titleAnimationEnabled,
+            selectedIndex: selectedDisplayItem,
+            currentlyPlayingOriginalIndex: currentlyPlayingOriginalIndex,
+            scrollController: scrollController,
+            onSongTap: _playSongFromAlbum,
+          ),
         ),
       ),
     );

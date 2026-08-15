@@ -31,12 +31,14 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   bool _isLeaving = false;
   bool _transitionActive = false;
 
+  bool get _isInteractionLocked => _isLeaving || _transitionActive;
+
   @override
   String get routeName => Routes.coverFlow.name;
 
   @override
   void onMenuButtonPressed() {
-    if (_isLeaving) {
+    if (_isInteractionLocked) {
       return;
     }
     _isLeaving = true;
@@ -91,9 +93,33 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
   }
 
   @override
-  void onSelectPressed() => _chooseAlbum(selectedDisplayItem);
+  void onSelectPressed() {
+    if (_isInteractionLocked) {
+      return;
+    }
+    _chooseAlbum(selectedDisplayItem);
+  }
+
+  @override
+  Future<void> scrollForward() async {
+    if (_isInteractionLocked) {
+      return;
+    }
+    await super.scrollForward();
+  }
+
+  @override
+  Future<void> scrollBackward() async {
+    if (_isInteractionLocked) {
+      return;
+    }
+    await super.scrollBackward();
+  }
 
   void _chooseAlbum(int index) {
+    if (_isInteractionLocked) {
+      return;
+    }
     final transition = _selectedTransitionKey.currentState;
     if (transition == null) {
       unawaited(_openAlbumSelection(displayItems[index]));
@@ -183,7 +209,9 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
                             key: ValueKey(
                               'cover-flow-item-${displayItems[index].albumName}-${displayItems[index].albumArtistName}',
                             ),
-                            onTap: relativePosition == 0
+                            onTap: _isInteractionLocked
+                                ? null
+                                : relativePosition == 0
                                 ? () => _chooseAlbum(index)
                                 : () async => pageController.animateToPage(
                                     index,
