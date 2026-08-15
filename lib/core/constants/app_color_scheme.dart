@@ -69,4 +69,22 @@ class AppColorScheme {
         color: CupertinoColors.white,
         darkColor: Color(0xFF1A1C1F),
       );
+
+  static const CupertinoDynamicColor coverFlowSelectedGradientStart =
+      CupertinoDynamicColor.withBrightness(
+        color: AppPalette.selectedTileGradientColor1,
+        darkColor: Color(0xFF5E83B2),
+      );
+
+  static const CupertinoDynamicColor coverFlowSelectedGradientEnd =
+      CupertinoDynamicColor.withBrightness(
+        color: AppPalette.selectedTileGradientColor2,
+        darkColor: Color(0xFF315A8D),
+      );
+
+  static const CupertinoDynamicColor coverFlowSelectedText =
+      CupertinoDynamicColor.withBrightness(
+        color: CupertinoColors.white,
+        darkColor: CupertinoColors.white,
+      );
 }

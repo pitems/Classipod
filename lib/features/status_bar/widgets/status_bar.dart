@@ -2,7 +2,9 @@ import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/status_bar/widgets/battery_indicator.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
 class StatusBar extends StatelessWidget {
   final String title;
@@ -43,14 +45,16 @@ class StatusBar extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: CupertinoColors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                child: _MaintenanceTapTarget(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: CupertinoColors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
                   ),
-                  maxLines: 1,
                 ),
               ),
               Consumer(
@@ -72,6 +76,49 @@ class StatusBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MaintenanceTapTarget extends StatefulWidget {
+  final Widget child;
+
+  const _MaintenanceTapTarget({required this.child});
+
+  @override
+  State<_MaintenanceTapTarget> createState() => _MaintenanceTapTargetState();
+}
+
+class _MaintenanceTapTargetState extends State<_MaintenanceTapTarget> {
+  static const _requiredTaps = 7;
+  static const _channel = MethodChannel('classipod/maintenance');
+
+  Timer? _resetTimer;
+  int _tapCount = 0;
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onTap() {
+    _resetTimer?.cancel();
+    _resetTimer = Timer(const Duration(seconds: 2), () => _tapCount = 0);
+    _tapCount++;
+
+    if (_tapCount >= _requiredTaps) {
+      _tapCount = 0;
+      _channel.invokeMethod<void>('openBridge');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _onTap,
+      child: widget.child,
     );
   }
 }
