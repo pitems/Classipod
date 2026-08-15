@@ -1,4 +1,5 @@
-import 'package:classipod/core/constants/app_palette.dart';
+import 'package:classipod/core/constants/app_color_scheme.dart';
+import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -58,8 +59,8 @@ class _CoverFlowAlbumSelectionScreenState
           padding: const EdgeInsets.fromLTRB(40, 10, 40, 0),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: CupertinoColors.white,
-              border: Border.all(),
+              color: context.appBackgroundColor,
+              border: Border.all(color: context.appOutlineColor),
             ),
             child: Column(
               children: [
@@ -67,13 +68,15 @@ class _CoverFlowAlbumSelectionScreenState
                   height: 50,
                   width: double.infinity,
                   child: DecoratedBox(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          AppPalette.selectedTileGradientColor1,
-                          AppPalette.selectedTileGradientColor2,
+                          AppColorScheme.coverFlowSelectedGradientStart
+                              .resolveFrom(context),
+                          AppColorScheme.coverFlowSelectedGradientEnd
+                              .resolveFrom(context),
                         ],
                       ),
                     ),

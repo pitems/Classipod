@@ -19,25 +19,37 @@ class AnimatedAlbumArtScroller extends ConsumerStatefulWidget {
 
 class _AnimatedAlbumArtScrollerState
     extends ConsumerState<AnimatedAlbumArtScroller>
-    with SingleTickerProviderStateMixin {
-  ImageProvider _albumArtImage = const AssetImage(
+    with TickerProviderStateMixin {
+  ImageProvider _currentAlbumArt = const AssetImage(
     Assets.defaultAlbumCoverImage,
   );
-  late final AnimationController _animationController;
-  late Animation<Alignment> _alignmentAnimation;
-  double alignment = 0;
-  bool _isEmptyState = false;
+  ImageProvider? _nextAlbumArt;
 
-  void _getRandomAlbumArt() {
-    final albumDetails = ref.read(albumDetailsProvider);
-    if (albumDetails.isEmpty) {
-      setState(() {
-        _isEmptyState = true;
-      });
-      return;
+  late AnimationController _currentMotionController;
+  late AnimationController _nextMotionController;
+  late final AnimationController _fadeController;
+  late final Animation<double> _fadeAnimation;
+  late Animation<Alignment> _currentAlignmentAnimation;
+  late Animation<Alignment> _nextAlignmentAnimation;
+
+  bool _isEmptyState = false;
+  bool _isTransitioning = false;
+
+  ImageProvider _chooseAlbumArt(List<dynamic> albumsWithArtwork) {
+    if (albumsWithArtwork.isEmpty) {
+      return const AssetImage(Assets.defaultAlbumCoverImage);
     }
 
-    final albumsWithArtwork = albumDetails.where((album) {
+    final randomAlbum = albumsWithArtwork.elementAt(
+      Random().nextInt(albumsWithArtwork.length),
+    );
+    return randomAlbum.isOnDevice()
+        ? FileImage(File(randomAlbum.albumArtPath!))
+        : NetworkImage(randomAlbum.albumArtPath!);
+  }
+
+  ImageProvider _getRandomAlbumArtImage() {
+    final albumsWithArtwork = ref.read(albumDetailsProvider).where((album) {
       final albumArtPath = album.albumArtPath;
       if (albumArtPath == null) {
         return false;
@@ -45,74 +57,142 @@ class _AnimatedAlbumArtScrollerState
       return !album.isOnDevice() || File(albumArtPath).existsSync();
     }).toList();
 
+    return _chooseAlbumArt(albumsWithArtwork);
+  }
+
+  void _loadInitialAlbumArt() {
+    final albumDetails = ref.read(albumDetailsProvider);
+    if (albumDetails.isEmpty) {
+      setState(() => _isEmptyState = true);
+      return;
+    }
+
     setState(() {
       _isEmptyState = false;
-      if (albumsWithArtwork.isEmpty) {
-        _albumArtImage = const AssetImage(Assets.defaultAlbumCoverImage);
-      } else {
-        final randomAlbum = albumsWithArtwork.elementAt(
-          Random().nextInt(albumsWithArtwork.length),
-        );
-        _albumArtImage = randomAlbum.isOnDevice()
-            ? FileImage(File(randomAlbum.albumArtPath!))
-            : NetworkImage(randomAlbum.albumArtPath!);
-      }
+      _currentAlbumArt = _getRandomAlbumArtImage();
     });
   }
 
-  void _setRandomAnimationDirection() {
-    final randomNumber = Random().nextInt(4);
-    if (randomNumber == 0) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).animate(_animationController);
-    } else if (randomNumber == 1) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-      ).animate(_animationController);
-    } else if (randomNumber == 2) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-      ).animate(_animationController);
-    } else {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.bottomRight,
-        end: Alignment.topLeft,
-      ).animate(_animationController);
+  Animation<Alignment> _horizontalAnimation(AnimationController controller) {
+    final bool leftToRight = Random().nextBool();
+    return Tween<Alignment>(
+      begin: leftToRight ? Alignment.topLeft : Alignment.topRight,
+      end: leftToRight ? Alignment.topRight : Alignment.topLeft,
+    ).animate(controller);
+  }
+
+  void _setCurrentDirection() {
+    _currentAlignmentAnimation = _horizontalAnimation(_currentMotionController);
+  }
+
+  void _setNextDirection() {
+    _nextAlignmentAnimation = _horizontalAnimation(_nextMotionController);
+  }
+
+  void _watchCurrentMotion() {
+    if (_currentMotionController.value >= 0.75 && !_isTransitioning) {
+      _isTransitioning = true;
+      unawaited(_crossfadeToNextAlbumArt());
     }
   }
 
-  void _repeatAnimation() {
-    if (_animationController.isCompleted) {
-      _setRandomAnimationDirection();
-      _getRandomAlbumArt();
-      unawaited(_animationController.repeat(count: 1));
+  Future<void> _crossfadeToNextAlbumArt() async {
+    final ImageProvider nextAlbumArt = _getRandomAlbumArtImage();
+    await precacheImage(nextAlbumArt, context);
+    if (!mounted) {
+      return;
     }
+
+    setState(() => _nextAlbumArt = nextAlbumArt);
+    _nextMotionController.value = 0;
+    _setNextDirection();
+    unawaited(_nextMotionController.forward(from: 0));
+
+    await _fadeController.animateTo(
+      1,
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeInOut,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    final oldCurrentController = _currentMotionController;
+    _currentMotionController.removeListener(_watchCurrentMotion);
+
+    // The incoming cover is now fully visible. Swap controller roles while
+    // the outgoing controller is hidden, so no transform can jump on screen.
+    _currentMotionController = _nextMotionController;
+    _nextMotionController = oldCurrentController;
+    _currentAlignmentAnimation = _nextAlignmentAnimation;
+
+    setState(() {
+      _currentAlbumArt = _nextAlbumArt!;
+      _nextAlbumArt = null;
+    });
+
+    _nextMotionController.stop();
+    _nextMotionController.value = 0;
+    _setNextDirection();
+    _fadeController.value = 0;
+    _currentMotionController.addListener(_watchCurrentMotion);
+    _isTransitioning = false;
   }
 
   @override
   void initState() {
     super.initState();
-    _getRandomAlbumArt();
-    _animationController = AnimationController(
+    _currentMotionController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 4),
     );
+    _nextMotionController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
+    _fadeController = AnimationController(
+      vsync: this,
+      value: 0,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+
+    _loadInitialAlbumArt();
+    _setCurrentDirection();
+    _setNextDirection();
     if (!_isEmptyState) {
-      _setRandomAnimationDirection();
-      unawaited(_animationController.forward());
-      _animationController.addListener(_repeatAnimation);
+      _currentMotionController.addListener(_watchCurrentMotion);
+      unawaited(_currentMotionController.forward());
     }
   }
 
   @override
   void dispose() {
-    _animationController.removeListener(_repeatAnimation);
-    _animationController.dispose();
+    _currentMotionController.removeListener(_watchCurrentMotion);
+    _currentMotionController.dispose();
+    _nextMotionController.dispose();
+    _fadeController.dispose();
     super.dispose();
+  }
+
+  Widget _albumArtImageWidget(ImageProvider image) {
+    return Image(
+      image: image,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          Assets.defaultAlbumCoverImage,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
+        );
+      },
+    );
   }
 
   @override
@@ -125,26 +205,34 @@ class _AnimatedAlbumArtScrollerState
 
     return RepaintBoundary(
       key: const ValueKey(SplitScreenType.albumArt),
-      child: AnimatedAlbumArt(
-        animation: _alignmentAnimation,
-        child: AnimatedSwitcher(
-          duration: const Duration(seconds: 1),
-          child: Image(
-            key: ValueKey(_albumArtImage),
-            image: _albumArtImage,
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Image.asset(
-                Assets.defaultAlbumCoverImage,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              );
-            },
-          ),
-        ),
+      child: AnimatedBuilder(
+        animation: Listenable.merge([
+          _currentMotionController,
+          _nextMotionController,
+          _fadeController,
+        ]),
+        builder: (context, child) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Opacity(
+                opacity: 1 - _fadeAnimation.value,
+                child: AnimatedAlbumArt(
+                  animation: _currentAlignmentAnimation,
+                  child: _albumArtImageWidget(_currentAlbumArt),
+                ),
+              ),
+              if (_nextAlbumArt != null)
+                Opacity(
+                  opacity: _fadeAnimation.value,
+                  child: AnimatedAlbumArt(
+                    animation: _nextAlignmentAnimation,
+                    child: _albumArtImageWidget(_nextAlbumArt!),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

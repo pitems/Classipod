@@ -49,11 +49,11 @@ class MetadataReaderRepository {
     return supportedAudioFileExtensions.any(lowercasePath.endsWith);
   }
 
-  AudioMetadata _readAudioMetadata(String path) {
+  AudioMetadata _readAudioMetadata(String path, {bool getImage = true}) {
     final File file = File(path);
 
     try {
-      return readMetadata(file, getImage: true);
+      return readMetadata(file, getImage: getImage);
     } on NoMetadataParserException {
       if (!path.toLowerCase().endsWith('.aac') || !_isAdtsAac(file)) {
         rethrow;
@@ -120,24 +120,31 @@ class MetadataReaderRepository {
     final List<String> filePaths = files.map((e) => e.path).toList();
 
     final List<MusicMetadata> metadataList = [];
+    final Set<String> processedArtworkPaths = {};
 
     AudioMetadata audioMetadata;
 
     for (final String path in filePaths) {
       try {
         if (isSupportedAudioFormat(path)) {
-          audioMetadata = _readAudioMetadata(path);
+          audioMetadata = _readAudioMetadata(path, getImage: false);
 
           String? thumbnailPath;
-          if (audioMetadata.pictures.isNotEmpty) {
-            thumbnailPath = getThumbnailPath(
-              albumName: audioMetadata.album,
-              artistName: audioMetadata.artist,
-              filePath: path,
-            );
-            File(
-              thumbnailPath,
-            ).writeAsBytesSync(audioMetadata.pictures[0].bytes);
+          final String artworkPath = getThumbnailPath(
+            albumName: audioMetadata.album,
+            artistName: audioMetadata.artist,
+            filePath: path,
+          );
+          final File artworkFile = File(artworkPath);
+
+          if (artworkFile.existsSync()) {
+            thumbnailPath = artworkPath;
+          } else if (processedArtworkPaths.add(artworkPath)) {
+            final AudioMetadata metadataWithImage = _readAudioMetadata(path);
+            if (metadataWithImage.pictures.isNotEmpty) {
+              artworkFile.writeAsBytesSync(metadataWithImage.pictures[0].bytes);
+              thumbnailPath = artworkPath;
+            }
           }
 
           metadataList.add(
@@ -160,24 +167,31 @@ class MetadataReaderRepository {
     List<String> filePaths,
   ) {
     final List<MusicMetadata> metadataList = [];
+    final Set<String> processedArtworkPaths = {};
 
     AudioMetadata audioMetadata;
 
     for (final String path in filePaths) {
       try {
         if (isSupportedAudioFormat(path)) {
-          audioMetadata = _readAudioMetadata(path);
+          audioMetadata = _readAudioMetadata(path, getImage: false);
 
           String? thumbnailPath;
-          if (audioMetadata.pictures.isNotEmpty) {
-            thumbnailPath = getThumbnailPath(
-              albumName: audioMetadata.album,
-              artistName: audioMetadata.artist,
-              filePath: path,
-            );
-            File(
-              thumbnailPath,
-            ).writeAsBytesSync(audioMetadata.pictures[0].bytes);
+          final String artworkPath = getThumbnailPath(
+            albumName: audioMetadata.album,
+            artistName: audioMetadata.artist,
+            filePath: path,
+          );
+          final File artworkFile = File(artworkPath);
+
+          if (artworkFile.existsSync()) {
+            thumbnailPath = artworkPath;
+          } else if (processedArtworkPaths.add(artworkPath)) {
+            final AudioMetadata metadataWithImage = _readAudioMetadata(path);
+            if (metadataWithImage.pictures.isNotEmpty) {
+              artworkFile.writeAsBytesSync(metadataWithImage.pictures[0].bytes);
+              thumbnailPath = artworkPath;
+            }
           }
 
           metadataList.add(
