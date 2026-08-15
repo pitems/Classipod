@@ -35,17 +35,32 @@ class _AnimatedAlbumArtScrollerState
   bool _isEmptyState = false;
   bool _isTransitioning = false;
 
-  ImageProvider _chooseAlbumArt(List<dynamic> albumsWithArtwork) {
+  ImageProvider _albumArtForAlbum(dynamic album) {
+    return album.isOnDevice()
+        ? FileImage(File(album.albumArtPath!))
+        : NetworkImage(album.albumArtPath!);
+  }
+
+  ImageProvider _chooseAlbumArt(
+    List<dynamic> albumsWithArtwork, {
+    ImageProvider? excludedAlbumArt,
+  }) {
     if (albumsWithArtwork.isEmpty) {
       return const AssetImage(Assets.defaultAlbumCoverImage);
     }
 
-    final randomAlbum = albumsWithArtwork.elementAt(
-      Random().nextInt(albumsWithArtwork.length),
+    final availableAlbums = excludedAlbumArt == null
+        ? albumsWithArtwork
+        : albumsWithArtwork
+              .where((album) => _albumArtForAlbum(album) != excludedAlbumArt)
+              .toList();
+    final albumsToChooseFrom = availableAlbums.isEmpty
+        ? albumsWithArtwork
+        : availableAlbums;
+    final randomAlbum = albumsToChooseFrom.elementAt(
+      Random().nextInt(albumsToChooseFrom.length),
     );
-    return randomAlbum.isOnDevice()
-        ? FileImage(File(randomAlbum.albumArtPath!))
-        : NetworkImage(randomAlbum.albumArtPath!);
+    return _albumArtForAlbum(randomAlbum);
   }
 
   ImageProvider _getRandomAlbumArtImage() {
@@ -57,7 +72,10 @@ class _AnimatedAlbumArtScrollerState
       return !album.isOnDevice() || File(albumArtPath).existsSync();
     }).toList();
 
-    return _chooseAlbumArt(albumsWithArtwork);
+    return _chooseAlbumArt(
+      albumsWithArtwork,
+      excludedAlbumArt: _currentAlbumArt,
+    );
   }
 
   void _loadInitialAlbumArt() {
