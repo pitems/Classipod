@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -5,6 +7,7 @@ import 'package:classipod/core/widgets/album_art_song_list_tile.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/genres/providers/genre_songs_provider.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,10 +54,15 @@ class _GenreSongsScreenState extends ConsumerState<GenreSongsScreen>
 
   Future<void> _playSong(int index) async {
     setState(() => selectedDisplayItem = index);
-    await ref
-        .read(audioPlayerServiceProvider.notifier)
-        .playSongFromOriginalList(displayItems[index].originalSongIndex);
     if (mounted) {
+      unawaited(
+        AlbumReflectiveArt.precacheArtwork(context, displayItems[index]),
+      );
+      unawaited(
+        ref
+            .read(audioPlayerServiceProvider.notifier)
+            .playSongFromOriginalList(displayItems[index].originalSongIndex),
+      );
       await context.pushNamed(Routes.nowPlaying.name);
     }
   }

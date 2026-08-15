@@ -308,6 +308,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   @override
   Widget build(BuildContext context) {
     final nowPlayingDetails = ref.watch(nowPlayingDetailsProvider);
+    final isPreparingPlayback = ref.watch(audioPlayerServiceProvider).isLoading;
     final String? lyrics = nowPlayingDetails.currentMetadata?.lyrics;
     final bool hasLyrics = lyrics != null && lyrics.trim().isNotEmpty;
     final int? currentLyricsSongIndex =
@@ -338,6 +339,17 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     }
 
     ref.listen(deviceButtonsServiceProvider, deviceControlHandler);
+
+    if (isPreparingPlayback) {
+      return CupertinoPageScaffold(
+        child: Column(
+          children: [
+            StatusBar(title: Routes.nowPlaying.title(context)),
+            const Expanded(child: Center(child: CupertinoActivityIndicator())),
+          ],
+        ),
+      );
+    }
 
     if (nowPlayingDetails.metadataList.isEmpty) {
       return CupertinoPageScaffold(
