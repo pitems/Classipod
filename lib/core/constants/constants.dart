@@ -26,7 +26,7 @@ class Constants {
   static const double clickWheelHighSensitivityBigThreshold = 10;
   static const int milliSecondsBeforeNextScroll = 75;
 
-  static const double screenHeight = 300;
+  static const double screenHeight = 340;
   static const double deviceClickWheelSmallRadiusRatio = 0.45;
   static const double deviceClickWheelMediumRadiusRatio = 0.61;
   static const double deviceClickWheelLargeRadiusRatio = 0.80;

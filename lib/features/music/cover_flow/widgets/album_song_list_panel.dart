@@ -1,4 +1,5 @@
 import 'package:classipod/core/constants/app_color_scheme.dart';
+import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/cover_flow/widgets/cover_flow_album_song_list_tile.dart';
@@ -26,7 +27,12 @@ class AlbumSongListPanel extends StatelessWidget {
           .toDouble();
 
   static double targetHeight(BuildContext context) =>
-      (MediaQuery.sizeOf(context).height * 0.38).clamp(260.0, 360.0).toDouble();
+      ((MediaQuery.sizeOf(context).height < Constants.screenHeight
+                  ? MediaQuery.sizeOf(context).height
+                  : Constants.screenHeight) *
+              0.38)
+          .clamp(260.0, 360.0)
+          .toDouble();
 
   @override
   Widget build(BuildContext context) {

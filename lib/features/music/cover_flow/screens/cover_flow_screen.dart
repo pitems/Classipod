@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -7,6 +8,7 @@ import 'package:classipod/features/custom_screen_elements/custom_page_screen.dar
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:classipod/features/music/cover_flow/screens/cover_flow_album_selection_screen.dart';
+import 'package:classipod/features/music/cover_flow/widgets/album_song_list_panel.dart';
 import 'package:classipod/features/music/cover_flow/widgets/album_transition_card.dart';
 import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
@@ -67,10 +69,33 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
       reverseCurve: Curves.easeInCubic,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        unawaited(_transitionController.forward());
-      }
+      unawaited(_startEntranceTransition());
     });
+  }
+
+  Future<void> _startEntranceTransition() async {
+    if (!mounted) {
+      return;
+    }
+
+    final album = displayItems.elementAtOrNull(selectedDisplayItem);
+    final artworkPath = album?.albumArtPath;
+    if (album != null && artworkPath != null && album.isOnDevice()) {
+      unawaited(_precacheArtwork(FileImage(File(artworkPath))));
+    }
+
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) {
+      unawaited(_transitionController.forward());
+    }
+  }
+
+  Future<void> _precacheArtwork(ImageProvider<Object> image) async {
+    try {
+      await precacheImage(image, context);
+    } catch (_) {
+      // AlbumReflectiveArt will display its normal fallback if decoding fails.
+    }
   }
 
   @override
@@ -214,60 +239,76 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
               clipBehavior: Clip.none,
               children: [
                 SizedBox(
-                  height: 230,
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: displayItems.length,
-                    clipBehavior: Clip.none,
-                    itemBuilder: (context, index) {
-                      final double relativePosition = index - currentPage;
-                      return GestureDetector(
-                        onTap: relativePosition == 0
-                            ? () => _chooseAlbum(index)
-                            : () async => pageController.animateToPage(
-                                index,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.ease,
-                              ),
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.003)
-                            ..scaleByDouble(
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              1,
-                            )
-                            ..rotateY(relativePosition * 0.9),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: relativePosition == 0
-                              ? _transitionActive
-                                    ? const SizedBox(width: 230, height: 230)
-                                    : AlbumTransitionCard(
-                                        key: _selectedTransitionKey,
-                                        album: displayItems[index],
-                                        onOpenCompleted: () => unawaited(
-                                          _openAlbumSelection(
-                                            displayItems[index],
-                                          ),
-                                        ),
-                                      )
-                              : AlbumReflectiveArt(
-                                  imageWidth: 230,
-                                  thumbnailPath:
-                                      displayItems[index].albumArtPath,
-                                  isOnDevice: displayItems[index].isOnDevice(),
-                                  heroTag:
-                                      "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
-                                ),
-                        ),
-                      );
-                    },
+                  height: AlbumSongListPanel.targetHeight(context),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      height: 230,
+                      child: PageView.builder(
+                        controller: pageController,
+                        itemCount: displayItems.length,
+                        clipBehavior: Clip.none,
+                        itemBuilder: (context, index) {
+                          final double relativePosition = index - currentPage;
+                          return GestureDetector(
+                            key: ValueKey(
+                              'cover-flow-item-${displayItems[index].albumName}-${displayItems[index].albumArtistName}',
+                            ),
+                            onTap: relativePosition == 0
+                                ? () => _chooseAlbum(index)
+                                : () async => pageController.animateToPage(
+                                    index,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.ease,
+                                  ),
+                            child: Transform(
+                              transform: Matrix4.identity()
+                                ..setEntry(3, 2, 0.003)
+                                ..scaleByDouble(
+                                  (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                      0.4,
+                                  (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                      0.4,
+                                  (1 - relativePosition.abs()).clamp(0.2, 0.6) +
+                                      0.4,
+                                  1,
+                                )
+                                ..rotateY(relativePosition * 0.9),
+                              alignment: relativePosition >= 0
+                                  ? Alignment.centerLeft
+                                  : Alignment.centerRight,
+                              child: relativePosition == 0
+                                  ? _transitionActive
+                                        ? const SizedBox(
+                                            width: 230,
+                                            height: 230,
+                                          )
+                                        : AlbumTransitionCard(
+                                            key: _selectedTransitionKey,
+                                            album: displayItems[index],
+                                            onOpenCompleted: () => unawaited(
+                                              _openAlbumSelection(
+                                                displayItems[index],
+                                              ),
+                                            ),
+                                          )
+                                  : RepaintBoundary(
+                                      child: AlbumReflectiveArt(
+                                        imageWidth: 230,
+                                        thumbnailPath:
+                                            displayItems[index].albumArtPath,
+                                        isOnDevice: displayItems[index]
+                                            .isOnDevice(),
+                                        animateReflection: false,
+                                        heroTag:
+                                            "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
+                                      ),
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(

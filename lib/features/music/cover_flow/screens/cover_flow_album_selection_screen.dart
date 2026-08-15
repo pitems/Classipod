@@ -58,6 +58,50 @@ class _CoverFlowAlbumSelectionScreenState
   @override
   Future<void> onSelectPressed() => _playSongFromAlbum(selectedDisplayItem);
 
+  @override
+  void scrollForward() {
+    if (selectedDisplayItem >= displayItems.length - 1) {
+      return;
+    }
+    setState(() => selectedDisplayItem++);
+    _scheduleSelectedSongVisibility();
+  }
+
+  @override
+  void scrollBackward() {
+    if (selectedDisplayItem <= 0) {
+      return;
+    }
+    setState(() => selectedDisplayItem--);
+    _scheduleSelectedSongVisibility();
+  }
+
+  void _scheduleSelectedSongVisibility() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !scrollController.hasClients) {
+        return;
+      }
+
+      const rowHeight = 30.0;
+      final position = scrollController.position;
+      final selectedTop = selectedDisplayItem * rowHeight;
+      final selectedBottom = selectedTop + rowHeight;
+      final viewportTop = position.pixels;
+      final viewportBottom = viewportTop + position.viewportDimension;
+
+      final targetOffset = selectedTop < viewportTop
+          ? selectedTop
+          : selectedBottom > viewportBottom
+          ? selectedBottom - position.viewportDimension
+          : position.pixels;
+
+      final clampedOffset = targetOffset.clamp(0.0, position.maxScrollExtent);
+      if (clampedOffset != position.pixels) {
+        scrollController.jumpTo(clampedOffset);
+      }
+    });
+  }
+
   Future<void> _playSongFromAlbum(int index) async {
     setState(() => selectedDisplayItem = index);
     await ref

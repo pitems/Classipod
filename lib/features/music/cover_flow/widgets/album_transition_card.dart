@@ -77,6 +77,7 @@ class AlbumTransitionCardState extends State<AlbumTransitionCard>
       imageWidth: 230,
       thumbnailPath: widget.album.albumArtPath,
       isOnDevice: widget.album.isOnDevice(),
+      animateReflection: false,
       heroTag:
           '${widget.album.albumName}-${widget.album.albumArtistName}-transition',
     );
