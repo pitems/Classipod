@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -8,6 +10,7 @@ import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/search/model/search_model.dart';
 import 'package:classipod/features/music/search/provider/search_provider.dart';
 import 'package:classipod/features/music/search/widgets/search_list_tile.dart';
+import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,10 +49,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       final searchResult = displayItems[selectedDisplayItem - 1];
       if (searchResult.searchResultType == SearchResultType.track) {
         final metadata = searchResult.result as MusicMetadata;
-        await ref
-            .read(audioPlayerServiceProvider.notifier)
-            .playSongFromOriginalList(metadata.originalSongIndex);
         if (mounted) {
+          unawaited(AlbumReflectiveArt.precacheArtwork(context, metadata));
+          unawaited(
+            ref
+                .read(audioPlayerServiceProvider.notifier)
+                .playSongFromOriginalList(metadata.originalSongIndex),
+          );
           await context.pushNamed(Routes.nowPlaying.name);
         }
       } else if (searchResult.searchResultType == SearchResultType.artist) {

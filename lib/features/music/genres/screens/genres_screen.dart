@@ -69,6 +69,7 @@ class _GenresScreenState extends ConsumerState<GenresScreen> with CustomScreen {
                 itemBuilder: (context, index) => DisplayListTile(
                   text: displayItems[index],
                   isSelected: selectedDisplayItem == index,
+                  isAlternate: index.isOdd,
                   onTap: () => _selectGenre(index),
                 ),
               ),

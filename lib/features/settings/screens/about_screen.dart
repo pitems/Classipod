@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/extensions/go_router_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -9,20 +11,60 @@ import 'package:classipod/features/music/artists/providers/artist_names_provider
 import 'package:classipod/features/settings/widgets/about_list_tile.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class AboutScreen extends ConsumerWidget {
+class AboutScreen extends ConsumerStatefulWidget {
   const AboutScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends ConsumerState<AboutScreen> {
+  static const _requiredCenterPresses = 3;
+  static const _maintenanceChannel = MethodChannel('classipod/maintenance');
+
+  Timer? _centerPressResetTimer;
+  int _centerPressCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _centerPressResetTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleCenterPress() {
+    _centerPressResetTimer?.cancel();
+    _centerPressResetTimer = Timer(
+      const Duration(seconds: 2),
+      () => _centerPressCount = 0,
+    );
+    _centerPressCount++;
+
+    if (_centerPressCount >= _requiredCenterPresses) {
+      _centerPressCount = 0;
+      unawaited(_maintenanceChannel.invokeMethod<void>('openBridge'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     ref.listen(deviceButtonsServiceProvider, (prevState, newState) {
       if (newState == null ||
           context.router.locationNamed != Routes.about.name) {
         return;
       } else if (newState == DeviceAction.menu) {
         context.pop();
+      } else if (newState == DeviceAction.select) {
+        _handleCenterPress();
       }
     });
 
@@ -59,11 +101,15 @@ class AboutScreen extends ConsumerWidget {
                 ),
                 AboutListTile(
                   titleText: context.localization.versionAboutScreenTitle,
-                  valueText: "1.12.0",
+                  valueText: "1.13.0",
                 ),
                 AboutListTile(
                   titleText: context.localization.madeWithLoveTitle,
                   valueText: "Aditya",
+                ),
+                const AboutListTile(
+                  titleText: "Improved by",
+                  valueText: "Pitems",
                 ),
               ],
             ),

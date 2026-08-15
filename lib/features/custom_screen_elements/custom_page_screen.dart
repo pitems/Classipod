@@ -11,7 +11,7 @@ mixin CustomPageScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   abstract final List displayItems;
   late final PageController pageController;
   final double viewPortFraction = 1;
-  final int initialPage = 0;
+  int get initialPage => 0;
   double currentPage = 0;
   int selectedDisplayItem = 0;
 
@@ -115,7 +115,6 @@ mixin CustomPageScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     pageController = PageController(
       initialPage: initialPage,
       viewportFraction: viewPortFraction,
-      keepPage: false,
     );
     pageController.addListener(_updatePage);
     super.initState();

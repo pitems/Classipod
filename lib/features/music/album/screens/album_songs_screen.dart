@@ -7,6 +7,7 @@ import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/songs/widgets/condensed_song_list_tile.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,11 +35,18 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
 
   Future<void> _playSongFromAlbum(int index) async {
     setState(() => selectedDisplayItem = index);
-    await ref
-        .read(audioPlayerServiceProvider.notifier)
-        .playAlbum(albumDetail: widget.albumDetail, songIndex: index);
-
     if (mounted) {
+      unawaited(
+        AlbumReflectiveArt.precacheArtwork(
+          context,
+          widget.albumDetail.albumSongs[index],
+        ),
+      );
+      unawaited(
+        ref
+            .read(audioPlayerServiceProvider.notifier)
+            .playAlbum(albumDetail: widget.albumDetail, songIndex: index),
+      );
       await context.pushNamed(Routes.nowPlaying.name);
     }
   }

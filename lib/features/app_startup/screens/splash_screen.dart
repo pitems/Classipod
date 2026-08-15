@@ -19,6 +19,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _showScanningMusicText = false;
+  bool _hasStartedWarmup = false;
   late final Timer _timer;
 
   void _toggleScanningMusicText() {
@@ -41,33 +42,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(splashControllerProvider, (_, state) async {
+    ref.listen(splashControllerProvider, (_, state) {
       if (state.hasError) {
         if (state.error is AudioPermissionDeniedException) {
-          await Dialogs.showInfoDialog(
-            context: context,
-            title: context.localization.audioAccessPermissionTitle,
-            content: context.localization.audioAccessPermissionContent,
+          unawaited(
+            _handlePermissionDenied(context: context, permanentlyDenied: false),
           );
-          await ref
-              .read(splashControllerProvider.notifier)
-              .requestStoragePermissions();
         } else if (state.error is AudioPermissionPermanentlyDeniedException) {
-          await Dialogs.showInfoDialog(
-            context: context,
-            title: context
-                .localization
-                .audioAccessPermissionPermanentlyDeniedTitle,
-            content: context
-                .localization
-                .audioAccessPermissionPermanentlyDeniedContent,
+          unawaited(
+            _handlePermissionDenied(context: context, permanentlyDenied: true),
           );
-          await ref
-              .read(splashControllerProvider.notifier)
-              .requestStoragePermissions();
-        } else if (!state.hasError && context.mounted) {
-          context.goNamed(Routes.menu.name);
         }
+      } else if (state.hasValue && !_hasStartedWarmup) {
+        _hasStartedWarmup = true;
+        unawaited(_warmUpAndEnterApp());
       }
     });
     return CupertinoPageScaffold(
@@ -122,5 +110,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handlePermissionDenied({
+    required BuildContext context,
+    required bool permanentlyDenied,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    await Dialogs.showInfoDialog(
+      context: context,
+      title: permanentlyDenied
+          ? context.localization.audioAccessPermissionPermanentlyDeniedTitle
+          : context.localization.audioAccessPermissionTitle,
+      content: permanentlyDenied
+          ? context.localization.audioAccessPermissionPermanentlyDeniedContent
+          : context.localization.audioAccessPermissionContent,
+    );
+    if (mounted) {
+      await ref
+          .read(splashControllerProvider.notifier)
+          .requestStoragePermissions();
+    }
+  }
+
+  Future<void> _warmUpAndEnterApp() async {
+    await ref
+        .read(splashControllerProvider.notifier)
+        .preloadForFirstFrame(context);
+    if (mounted) {
+      context.goNamed(Routes.menu.name);
+    }
   }
 }

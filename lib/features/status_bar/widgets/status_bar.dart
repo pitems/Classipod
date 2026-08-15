@@ -1,18 +1,29 @@
+import 'dart:async';
+
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/status_bar/widgets/battery_indicator.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:async';
+import 'package:intl/intl.dart';
 
 class StatusBar extends StatelessWidget {
   final String title;
+  final bool showSepiaLayout;
 
-  const StatusBar({super.key, required this.title});
+  const StatusBar({
+    super.key,
+    required this.title,
+    this.showSepiaLayout = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (StatusBarScope.of(context)) {
+      return const SizedBox.shrink();
+    }
+
     final isDarkTheme =
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final gradientColors = isDarkTheme
@@ -27,57 +38,193 @@ class StatusBar extends StatelessWidget {
     final borderColor = isDarkTheme
         ? AppPalette.darkStatusBarBorderColor
         : AppPalette.statusBarBorderColor;
+    final statusBarDecoration = showSepiaLayout
+        ? BoxDecoration(
+            color: isDarkTheme
+                ? const Color(0xFF1D1D1F)
+                : const Color(0xFFE3E3E3),
+            border: Border(bottom: BorderSide(color: borderColor)),
+          )
+        : BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: gradientColors,
+            ),
+            border: Border(bottom: BorderSide(color: borderColor)),
+          );
 
     return SizedBox(
       height: 30,
       width: double.infinity,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: gradientColors,
-          ),
-          border: Border(bottom: BorderSide(color: borderColor)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5),
-          child: Row(
-            children: [
-              Expanded(
-                child: _MaintenanceTapTarget(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: CupertinoColors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
+        decoration: statusBarDecoration,
+        child: showSepiaLayout
+            ? _SepiaStatusBarContent(title: title)
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: _StatusBarContent(title: title),
               ),
-              Consumer(
-                builder: (context, ref, child) {
-                  final isPlaying = ref.watch(
-                    nowPlayingDetailsProvider.select((e) => e.isPlaying),
-                  );
-                  return Icon(
-                    isPlaying
-                        ? CupertinoIcons.play_fill
-                        : CupertinoIcons.pause_fill,
-                    color: AppPalette.selectedTileGradientColor1,
-                  );
-                },
-              ),
-              const SizedBox(width: 2),
-              const RepaintBoundary(child: BatteryIndicator()),
-            ],
-          ),
-        ),
       ),
     );
   }
+}
+
+class _StatusBarContent extends StatelessWidget {
+  final String title;
+
+  const _StatusBarContent({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _MaintenanceTapTarget(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: CupertinoColors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+            ),
+          ),
+        ),
+        const _PlaybackIndicator(),
+        const SizedBox(width: 2),
+        const RepaintBoundary(child: BatteryIndicator()),
+      ],
+    );
+  }
+}
+
+class _SepiaStatusBarContent extends StatelessWidget {
+  final String title;
+
+  const _SepiaStatusBarContent({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor =
+        CupertinoTheme.of(context).brightness == Brightness.dark
+        ? CupertinoColors.white
+        : CupertinoColors.black;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: _MaintenanceTapTarget(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ).copyWith(color: foregroundColor),
+                maxLines: 1,
+              ),
+            ),
+          ),
+        ),
+        const _CurrentTime(),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(CupertinoIcons.volume_up, size: 14, color: foregroundColor),
+              const SizedBox(width: 6),
+              const _PlaybackIndicator(),
+              const SizedBox(width: 4),
+              const RepaintBoundary(child: BatteryIndicator()),
+              const SizedBox(width: 5),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaybackIndicator extends ConsumerWidget {
+  const _PlaybackIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPlaying = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.isPlaying),
+    );
+    return Icon(
+      isPlaying ? CupertinoIcons.play_fill : CupertinoIcons.pause_fill,
+      size: 14,
+      color: AppPalette.selectedTileGradientColor1,
+    );
+  }
+}
+
+class _CurrentTime extends StatefulWidget {
+  const _CurrentTime();
+
+  @override
+  State<_CurrentTime> createState() => _CurrentTimeState();
+}
+
+class _CurrentTimeState extends State<_CurrentTime> {
+  late String _time;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _updateTime());
+  }
+
+  void _updateTime() {
+    if (mounted) {
+      setState(() => _time = DateFormat('h:mm a').format(DateTime.now()));
+    } else {
+      _time = DateFormat('h:mm a').format(DateTime.now());
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor =
+        CupertinoTheme.of(context).brightness == Brightness.dark
+        ? CupertinoColors.white
+        : CupertinoColors.black;
+
+    return Text(
+      _time,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: foregroundColor,
+      ),
+    );
+  }
+}
+
+class StatusBarScope extends InheritedWidget {
+  const StatusBarScope({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<StatusBarScope>() != null;
+
+  @override
+  bool updateShouldNotify(StatusBarScope oldWidget) => false;
 }
 
 class _MaintenanceTapTarget extends StatefulWidget {
@@ -109,7 +256,7 @@ class _MaintenanceTapTargetState extends State<_MaintenanceTapTarget> {
 
     if (_tapCount >= _requiredTaps) {
       _tapCount = 0;
-      _channel.invokeMethod<void>('openBridge');
+      unawaited(_channel.invokeMethod<void>('openBridge'));
     }
   }
 

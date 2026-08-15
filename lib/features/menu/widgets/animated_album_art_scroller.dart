@@ -115,46 +115,61 @@ class _AnimatedAlbumArtScrollerState
   }
 
   Future<void> _crossfadeToNextAlbumArt() async {
-    final ImageProvider nextAlbumArt = _getRandomAlbumArtImage();
-    await precacheImage(nextAlbumArt, context);
-    if (!mounted) {
-      return;
-    }
+    try {
+      final ImageProvider nextAlbumArt = _getRandomAlbumArtImage();
+      await precacheImage(
+        nextAlbumArt,
+        context,
+      ).timeout(const Duration(seconds: 3));
+      if (!mounted) {
+        return;
+      }
 
-    setState(() => _nextAlbumArt = nextAlbumArt);
-    _nextMotionController.value = 0;
-    _setNextDirection();
-    unawaited(_nextMotionController.forward(from: 0));
+      setState(() => _nextAlbumArt = nextAlbumArt);
+      _nextMotionController.value = 0;
+      _setNextDirection();
+      unawaited(_nextMotionController.forward(from: 0));
 
-    await _fadeController.animateTo(
-      1,
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOut,
-    );
-    if (!mounted) {
-      return;
-    }
+      await _fadeController.animateTo(
+        1,
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeInOut,
+      );
+      if (!mounted) {
+        return;
+      }
 
-    final oldCurrentController = _currentMotionController;
-    _currentMotionController.removeListener(_watchCurrentMotion);
+      final oldCurrentController = _currentMotionController;
+      _currentMotionController.removeListener(_watchCurrentMotion);
 
-    // The incoming cover is now fully visible. Swap controller roles while
-    // the outgoing controller is hidden, so no transform can jump on screen.
-    _currentMotionController = _nextMotionController;
-    _nextMotionController = oldCurrentController;
-    _currentAlignmentAnimation = _nextAlignmentAnimation;
+      // The incoming cover is now fully visible. Swap controller roles while
+      // the outgoing controller is hidden, so no transform can jump on screen.
+      _currentMotionController = _nextMotionController;
+      _nextMotionController = oldCurrentController;
+      _currentAlignmentAnimation = _nextAlignmentAnimation;
 
-    setState(() {
-      _currentAlbumArt = _nextAlbumArt!;
+      setState(() {
+        _currentAlbumArt = _nextAlbumArt!;
+        _nextAlbumArt = null;
+      });
+
+      _nextMotionController.stop();
+      _nextMotionController.value = 0;
+      _setNextDirection();
+      _fadeController.value = 0;
+      _currentMotionController.addListener(_watchCurrentMotion);
+      _isTransitioning = false;
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      // A broken or slow cover must not permanently stop the ticker.
       _nextAlbumArt = null;
-    });
-
-    _nextMotionController.stop();
-    _nextMotionController.value = 0;
-    _setNextDirection();
-    _fadeController.value = 0;
-    _currentMotionController.addListener(_watchCurrentMotion);
-    _isTransitioning = false;
+      _fadeController.value = 0;
+      _isTransitioning = false;
+      unawaited(_currentMotionController.forward(from: 0));
+    }
   }
 
   @override
