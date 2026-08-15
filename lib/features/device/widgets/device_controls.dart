@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/constants/constants.dart';
@@ -26,78 +27,70 @@ class DeviceControls extends ConsumerStatefulWidget {
 }
 
 class _DeviceControlsState extends ConsumerState<DeviceControls> {
-  Duration durationSinceLastScroll = Duration.zero;
+  double? _lastWheelAngle;
+  double _accumulatedWheelAngle = 0;
+  Future<void> _wheelActionQueue = Future<void>.value();
 
-  Future<void> onClickWheelScroll({
+  double _wheelAngle(Offset position, double radius) {
+    return math.atan2(position.dy - radius, position.dx - radius);
+  }
+
+  double _shortestAngleDelta(double current, double previous) {
+    double delta = current - previous;
+    if (delta > math.pi) {
+      delta -= math.pi * 2;
+    } else if (delta < -math.pi) {
+      delta += math.pi * 2;
+    }
+    return delta;
+  }
+
+  void onClickWheelPanStart({
+    required DragStartDetails details,
+    required double radius,
+  }) {
+    _lastWheelAngle = _wheelAngle(details.localPosition, radius);
+    _accumulatedWheelAngle = 0;
+  }
+
+  void onClickWheelPanEnd() {
+    _lastWheelAngle = null;
+    _accumulatedWheelAngle = 0;
+  }
+
+  void _queueWheelAction(DeviceAction action) {
+    _wheelActionQueue = _wheelActionQueue.then((_) {
+      return ref
+          .read(deviceButtonsServiceProvider.notifier)
+          .setDeviceAction(action);
+    });
+  }
+
+  void onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
     required double radius,
-    required double smallThresholdRotationalChange,
-    required double bigThresholdRotationalChange,
-  }) async {
-    // Pan location on the wheel
-    final bool onTop = dragUpdateDetails.localPosition.dy <= radius;
-    final bool onLeftSide = dragUpdateDetails.localPosition.dx <= radius;
-    final bool onRightSide = !onLeftSide;
-    final bool onBottom = !onTop;
-
-    // Pan movements
-    final bool panUp = dragUpdateDetails.delta.dy <= 0.0;
-    final bool panLeft = dragUpdateDetails.delta.dx <= 0.0;
-    final bool panRight = !panLeft;
-    final bool panDown = !panUp;
-
-    // Absolute change on axis
-    final double yChange = dragUpdateDetails.delta.dy.abs();
-    final double xChange = dragUpdateDetails.delta.dx.abs();
-
-    // Directional change on wheel
-    final double verticalRotation =
-        (onRightSide && panDown) || (onLeftSide && panUp)
-        ? yChange
-        : yChange * -1;
-
-    final double horizontalRotation =
-        (onTop && panRight) || (onBottom && panLeft) ? xChange : xChange * -1;
-
-    // Total computed change
-    final double rotationalChange =
-        (verticalRotation + horizontalRotation) *
-        (dragUpdateDetails.delta.distance * 0.8);
-
-    int millisecondsSinceLastScroll = 0;
-    if (durationSinceLastScroll.inMinutes ==
-            dragUpdateDetails.sourceTimeStamp?.inMinutes &&
-        durationSinceLastScroll.inSeconds ==
-            dragUpdateDetails.sourceTimeStamp?.inSeconds) {
-      millisecondsSinceLastScroll =
-          dragUpdateDetails.sourceTimeStamp!.inMilliseconds -
-          durationSinceLastScroll.inMilliseconds;
-    } else {
-      durationSinceLastScroll =
-          dragUpdateDetails.sourceTimeStamp ?? Duration.zero;
+    required double stepAngle,
+  }) {
+    final double currentAngle = _wheelAngle(
+      dragUpdateDetails.localPosition,
+      radius,
+    );
+    final double? previousAngle = _lastWheelAngle;
+    _lastWheelAngle = currentAngle;
+    if (previousAngle == null) {
+      return;
     }
 
-    final bool isForwardDirection = rotationalChange > 0;
-    final double absRotationalChange = rotationalChange.abs();
+    _accumulatedWheelAngle += _shortestAngleDelta(currentAngle, previousAngle);
 
-    if ((absRotationalChange > bigThresholdRotationalChange) ||
-        (absRotationalChange > smallThresholdRotationalChange &&
-            millisecondsSinceLastScroll >
-                Constants.milliSecondsBeforeNextScroll)) {
-      await ref
-          .read(deviceButtonsServiceProvider.notifier)
-          .buttonPressVibrate();
-      await ref.read(deviceButtonsServiceProvider.notifier).clickWheelSound();
-      if (isForwardDirection) {
-        await ref
-            .read(deviceButtonsServiceProvider.notifier)
-            .setDeviceAction(DeviceAction.rotateForward);
-      } else {
-        await ref
-            .read(deviceButtonsServiceProvider.notifier)
-            .setDeviceAction(DeviceAction.rotateBackward);
-      }
-      durationSinceLastScroll = Duration.zero;
+    while (_accumulatedWheelAngle.abs() >= stepAngle) {
+      final bool isForwardDirection = _accumulatedWheelAngle > 0;
+      _accumulatedWheelAngle -= isForwardDirection ? stepAngle : -stepAngle;
+      _queueWheelAction(
+        isForwardDirection
+            ? DeviceAction.rotateForward
+            : DeviceAction.rotateBackward,
+      );
     }
   }
 
@@ -136,32 +129,19 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
         break;
     }
 
-    late final double smallThresholdRotationalChange;
-    late final double bigThresholdRotationalChange;
+    late final double stepAngle;
     switch (clickWheelSensitivity) {
       case ClickWheelSensitivity.veryLow:
-        smallThresholdRotationalChange =
-            Constants.clickWheelVeryLowSensitivitySmallThreshold;
-        bigThresholdRotationalChange =
-            Constants.clickWheelVeryLowSensitivityBigThreshold;
+        stepAngle = 0.70;
         break;
       case ClickWheelSensitivity.low:
-        smallThresholdRotationalChange =
-            Constants.clickWheelLowSensitivitySmallThreshold;
-        bigThresholdRotationalChange =
-            Constants.clickWheelLowSensitivityBigThreshold;
+        stepAngle = 0.35;
         break;
       case ClickWheelSensitivity.medium:
-        smallThresholdRotationalChange =
-            Constants.clickWheelMediumSensitivitySmallThreshold;
-        bigThresholdRotationalChange =
-            Constants.clickWheelMediumSensitivityBigThreshold;
+        stepAngle = 0.18;
         break;
       case ClickWheelSensitivity.high:
-        smallThresholdRotationalChange =
-            Constants.clickWheelHighSensitivitySmallThreshold;
-        bigThresholdRotationalChange =
-            Constants.clickWheelHighSensitivityBigThreshold;
+        stepAngle = 0.09;
         break;
     }
 
@@ -170,12 +150,17 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
         final double screenWidth = constraints.maxWidth + 40;
 
         return GestureDetector(
+          onPanStart: (details) => onClickWheelPanStart(
+            details: details,
+            radius: (screenWidth * clickWheelRadiusRatio) / 2,
+          ),
           onPanUpdate: (dragUpdateDetails) => onClickWheelScroll(
             dragUpdateDetails: dragUpdateDetails,
             radius: (screenWidth * clickWheelRadiusRatio) / 2,
-            smallThresholdRotationalChange: smallThresholdRotationalChange,
-            bigThresholdRotationalChange: bigThresholdRotationalChange,
+            stepAngle: stepAngle,
           ),
+          onPanEnd: (_) => onClickWheelPanEnd(),
+          onPanCancel: onClickWheelPanEnd,
           child: Container(
             height: screenWidth * clickWheelRadiusRatio,
             width: screenWidth * clickWheelRadiusRatio,
